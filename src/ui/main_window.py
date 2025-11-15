@@ -11,12 +11,6 @@ from ui.csv_table_panel import CsvTablePanel
 from settings_manager import load_settings, add_recent_project
 
 
-from services.excel_service import (
-    export_tasks_to_excel,
-    import_tasks_from_excel,
-    ExcelDependencyError,
-)
-
 from ui.menu_bar import build_menu_bar
 from .csv_commands_panel import build_csv_commands_panel
 
