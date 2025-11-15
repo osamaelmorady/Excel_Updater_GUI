@@ -1,22 +1,40 @@
 # task_scheduler/ui/main_window.py
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog   # 👈 filedialog comes from tkinter
 
 import customtkinter as ctk
 
 from models import Task
-from storage import load_tasks, save_tasks
+
+from storage import (
+    load_tasks,
+    save_tasks,
+    load_tasks_from,
+    save_tasks_to,
+    TASKS_FILE,
+)
+
 from services.scheduler_service import SchedulerService
 from services.notification_service import TkNotificationService
+
+from services.excel_service import (
+    export_tasks_to_excel,
+    import_tasks_from_excel,
+    ExcelDependencyError,
+)
+
 
 
 class TaskSchedulerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+        # current project path
+        self.project_path: str = TASKS_FILE
+
         # --- Window setup ---
         self.title("Task Scheduler")
-        self.geometry("800x500")
+        self.geometry("1024x800")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
@@ -40,24 +58,39 @@ class TaskSchedulerApp(ctk.CTk):
         self.refresh_listbox()
         self.check_tasks_loop()
         
+     
+        self._update_window_title()
         
+        
+        
+    def _update_window_title(self):
+        # show current project file name in title bar
+        import os
+        name = os.path.basename(self.project_path) if self.project_path else "Untitled"
+        self.title(f"Task Scheduler - {name}")
+
+        
+        
+       
     def build_menu_bar(self):
         """Create the top menu bar: File, Edit, Appearance, Help."""
         menubar = tk.Menu(self)
 
+
         # ---------- File menu ----------
         file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="New Project", command=self.new_project)
+        file_menu.add_command(label="Open Project...", command=self.open_project)
+        file_menu.add_command(label="Save Project...", command=self.save_project)
+        file_menu.add_separator()
         file_menu.add_command(label="Save Tasks", command=self._save_tasks_to_disk)
         file_menu.add_command(label="Reload Tasks", command=self._reload_tasks_from_disk)
         file_menu.add_separator()
+        file_menu.add_command(label="Export to Excel...", command=self.export_to_excel)
+        file_menu.add_command(label="Import from Excel...", command=self.import_from_excel)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit)
         menubar.add_cascade(label="File", menu=file_menu)
-
-        # ---------- Edit menu ----------
-        edit_menu = tk.Menu(menubar, tearoff=0)
-        edit_menu.add_command(label="Clear Form", command=self.clear_form)
-        edit_menu.add_command(label="Delete Selected Task", command=self.delete_task)
-        menubar.add_cascade(label="Edit", menu=edit_menu)
 
         # ---------- Appearance menu ----------
         appearance_menu = tk.Menu(menubar, tearoff=0)
@@ -282,6 +315,121 @@ class TaskSchedulerApp(ctk.CTk):
         self.after(30000, self.check_tasks_loop)
         
 
+    # -------- File menu actions --------
+    # -------- File menu actions --------
+    def new_project(self):
+        if self.tasks:
+            if not messagebox.askyesno("New Project", "Clear current tasks and start a new project?"):
+                return
+
+        self.tasks.clear()
+        # you can later change TASKS_FILE to a default .yaml if you want
+        self.project_path = TASKS_FILE
+        self.refresh_listbox()
+        self._update_window_title()
+
+    def open_project(self):
+        path = filedialog.askopenfilename(
+            title="Open Project",
+            filetypes=[("Task YAML files", "*.yaml"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        self.project_path = path
+        self.tasks = load_tasks_from(path)
+        self.scheduler.tasks = self.tasks  # keep scheduler in sync
+        self.refresh_listbox()
+        self._update_window_title()
+
+    def save_project(self):
+        path = filedialog.asksaveasfilename(
+            title="Save Project",
+            defaultextension=".yaml",
+            filetypes=[("Task YAML files", "*.yaml"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        try:
+            # save current tasks to the chosen file
+            save_tasks_to(self.tasks, path)
+
+            # update current project info
+            self.project_path = path
+            self.scheduler.tasks = self.tasks  # keep scheduler in sync
+            self._update_window_title()
+
+            messagebox.showinfo("Save Project", f"Project saved to:\n{path}")
+        except Exception as e:
+            messagebox.showerror("Save Project", f"Failed to save project:\n{e}")
+
+        
+
+    def export_to_excel(self):
+        if not self.tasks:
+            messagebox.showinfo("Export to Excel", "There are no tasks to export.")
+            return
+
+        path = filedialog.asksaveasfilename(
+            title="Export to Excel",
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx")],
+        )
+        if not path:
+            return
+
+        try:
+            export_tasks_to_excel(self.tasks, path)
+            messagebox.showinfo("Export to Excel", f"Tasks exported to:\n{path}")
+        except ExcelDependencyError as e:
+            messagebox.showerror("Excel Export", str(e))
+        except Exception as e:
+            messagebox.showerror("Excel Export", f"Failed to export tasks:\n{e}")
+
+
+    def import_from_excel(self):
+        path = filedialog.askopenfilename(
+            title="Import from Excel",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        try:
+            imported = import_tasks_from_excel(path)
+        except ExcelDependencyError as e:
+            messagebox.showerror("Excel Import", str(e))
+            return
+        except Exception as e:
+            messagebox.showerror("Excel Import", f"Failed to import tasks:\n{e}")
+            return
+
+        if not imported:
+            messagebox.showinfo("Excel Import", "No tasks found in the selected file.")
+            return
+
+        # merge or replace?  -> here we append
+        self.tasks.extend(imported)
+        self.scheduler.tasks = self.tasks
+        self.refresh_listbox()
+        messagebox.showinfo("Excel Import", f"Imported {len(imported)} tasks.")
+
+    def _save_tasks_to_disk(self):
+        try:
+            save_tasks_to(self.tasks, self.project_path)
+            messagebox.showinfo("Saved", "Tasks saved successfully.")
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save tasks:\n{e}")
+
+    def _reload_tasks_from_disk(self):
+        try:
+            self.tasks = load_tasks_from(self.project_path)
+            self.scheduler.tasks = self.tasks
+            self.refresh_listbox()
+            messagebox.showinfo("Reloaded", "Tasks reloaded from disk.")
+        except Exception as e:
+            messagebox.showerror("Reload Error", f"Failed to reload tasks:\n{e}")
 
 def run_app():
     app = TaskSchedulerApp()
