@@ -1,0 +1,19 @@
+# --- YAML Config for Defect Handler Generator ---
+name: "GUI_generator"  # Package Name
+author: "Osama ElMorady"          # Author for this project
+version: "01.00.00"               # Script version (major.minor.patch)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+manifest-template-version: "1.0"
