@@ -20,8 +20,9 @@ def build_menu_bar(app: "CsvViewerApp"):
     file_menu.add_separator()
     file_menu.add_command(label="Open CSV...", command=app.open_csv)
     file_menu.add_command(label="Reload CSV", command=app.reload_csv)
+    file_menu.add_command(label="Save CSV", command=app.save_csv,accelerator="Ctrl+S",)
     file_menu.add_separator()
-    file_menu.add_command(label="Exit", command=app.quit)
+    file_menu.add_command(label="Exit", command=app.quit, accelerator="Esc")
     menubar.add_cascade(label="File", menu=file_menu)
 
     # # ---------- Edit menu ----------
@@ -49,7 +50,7 @@ def build_menu_bar(app: "CsvViewerApp"):
     # ---------- Help menu ----------
     help_menu = tk.Menu(menubar, tearoff=0)
     help_menu.add_command(label="About", command=app._show_about_dialog)
-    menubar.add_cascade(label="Help", menu=help_menu)
+    menubar.add_cascade(label="Help", accelerator="F1", menu=help_menu)
 
     # Attach to window
     app.config(menu=menubar)

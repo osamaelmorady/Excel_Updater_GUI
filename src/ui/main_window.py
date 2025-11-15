@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 
 import customtkinter as ctk
-
+from .hotkeys import register_hotkeys
 
 from ui.csv_table_panel import CsvTablePanel
 
@@ -59,11 +59,10 @@ class CsvViewerApp(ctk.CTk):
         # Menu bar
         build_menu_bar(self)
         
+        # 🔥 Register global hotkeys
+        register_hotkeys(self)
 
-
-        # # Main body = CSV table panel
-        # self.csv_panel = CsvTablePanel(self)
-        # self.csv_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self._update_title_with_path()
 
     # ------------------------------------------------------------------
     # Appearance / Help
@@ -104,10 +103,6 @@ class CsvViewerApp(ctk.CTk):
         self._update_title_with_path()
 
     def open_project(self):
-        """
-        Open a YAML project file that stores at least:
-        csv_path: "path/to/file.csv"
-        """
         path = filedialog.askopenfilename(
             title="Open Project",
             filetypes=[("Project YAML files", "*.yaml"), ("All files", "*.*")],
@@ -122,12 +117,13 @@ class CsvViewerApp(ctk.CTk):
             return
 
         self.project_path = path
-        self.csv_path = project.get("csv_path")
+        self.csv_path = project.get("csv_path") or None
 
         if self.csv_path:
             try:
-                headers, rows = self._load_csv_file(self.csv_path)
-                self.csv_panel.load_data(headers, rows)
+                # 👇 use new signature: returns rows ONLY
+                rows = self._load_csv_file(self.csv_path)
+                self.csv_panel.load_data(rows)
             except Exception as e:
                 messagebox.showerror(
                     "Open Project", f"Project loaded, but CSV failed:\n{e}"
@@ -136,6 +132,7 @@ class CsvViewerApp(ctk.CTk):
             self.csv_panel.clear_table()
 
         self._update_title_with_path()
+
 
     def save_project(self):
         """
@@ -219,7 +216,9 @@ class CsvViewerApp(ctk.CTk):
         )
 
     
-    
+        # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
     def open_csv(self):
         path = filedialog.askopenfilename(
             title="Open CSV",
@@ -229,13 +228,13 @@ class CsvViewerApp(ctk.CTk):
             return
 
         try:
-            headers, rows = self._load_csv_file(path)
+            rows = self._load_csv_file(path)
         except Exception as e:
             messagebox.showerror("Open CSV", f"Failed to open CSV:\n{e}")
             return
 
         self.csv_path = path
-        self.csv_panel.load_data(headers, rows)
+        self.csv_panel.load_data(rows)
         self._update_title_with_path()
 
     def reload_csv(self):
@@ -244,33 +243,58 @@ class CsvViewerApp(ctk.CTk):
             return
 
         try:
-            headers, rows = self._load_csv_file(self.csv_path)
+            rows = self._load_csv_file(self.csv_path)
         except Exception as e:
             messagebox.showerror("Reload CSV", f"Failed to reload CSV:\n{e}")
             return
 
-        self.csv_panel.load_data(headers, rows)
+        self.csv_panel.load_data(rows)
         self._update_title_with_path()
+        
+    def save_csv(self):
+        """
+        Save the current sheet data to a CSV file.
+        """
+        rows = self.csv_panel.get_data()
+        if not rows:
+            messagebox.showinfo("Save CSV", "There is no data to save.")
+            return
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
+        # Suggest current file name if we have one
+        initialfile = os.path.basename(self.csv_path) if self.csv_path else "data.csv"
+        initialdir = os.path.dirname(self.csv_path) if self.csv_path else ""
+
+        path = filedialog.asksaveasfilename(
+            title="Save CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile=initialfile,
+            initialdir=initialdir or None,
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                for row in rows:
+                    writer.writerow(row)
+
+            self.csv_path = path
+            self._update_title_with_path()
+            messagebox.showinfo("Save CSV", f"CSV saved to:\n{path}")
+        except Exception as e:
+            messagebox.showerror("Save CSV", f"Failed to save CSV:\n{e}")
+
+    
+    
     def _load_csv_file(self, path: str):
-        """
-        Simple CSV loader using Python's csv module.
-        - Assumes UTF-8.
-        - Uses comma delimiter by default.
-        """
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv.reader(f)
             rows = list(reader)
 
-        if not rows:
-            return [], []
-
-        headers = rows[0]
-        data_rows = rows[1:]
-        return headers, data_rows
+        # return all rows; viewer will handle headers visually (A, B, C, ...)
+        return rows
 
     def _update_title_with_path(self):
         if not self.csv_path:
