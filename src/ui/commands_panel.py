@@ -1,8 +1,8 @@
-# task_scheduler/ui/csv_commands_panel.py
+# task_scheduler/ui/excel_panel.py
 import customtkinter as ctk
 
 
-def build_csv_commands_panel(app: "CsvViewerApp"):
+def build_excel_panel(app: "CsvViewerApp"):
     """
     Left side panel with CSV commands.
     """

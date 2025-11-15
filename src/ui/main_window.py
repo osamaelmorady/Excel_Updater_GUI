@@ -5,14 +5,14 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 
 import customtkinter as ctk
-from .hotkeys import register_hotkeys
+from managers.hotkeys import register_hotkeys
 
-from ui.csv_table_panel import CsvTablePanel
-from settings_manager import load_settings, add_recent_project
+from ui.excel_panel import CsvTablePanel
+from managers.settings_manager import load_settings, add_recent_project
 
 
-from ui.menu_bar import build_menu_bar
-from .csv_commands_panel import build_csv_commands_panel
+from ui.menu_panel import build_menu_bar
+from ui.commands_panel import build_excel_panel
 
 
 class CsvViewerApp(ctk.CTk):
@@ -22,9 +22,11 @@ class CsvViewerApp(ctk.CTk):
         # --- Window setup ---
         self.title("CSV Viewer")
         self.geometry("1024x700")
+        # Maximize AFTER the window is created (prevents flicker)
+        self.after(100, self._maximize_window)
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
-
+           
         # current CSV path
         # --- state ---
         self.csv_path: str | None = None   # currently opened CSV
@@ -32,11 +34,11 @@ class CsvViewerApp(ctk.CTk):
 
         # Layout: col 0 = sidebar, col 1 = main area
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=0, minsize=260)  # sidebar width
+        self.grid_columnconfigure(0, weight=0, minsize=500)  # sidebar width
         self.grid_columnconfigure(1, weight=1)               # main viewer
         
         # LEFT: commands panel
-        self.commands_panel = build_csv_commands_panel(self)
+        self.commands_panel = build_excel_panel(self)
 
         # RIGHT: CSV table panel
         self.csv_panel = CsvTablePanel(self)
@@ -61,10 +63,20 @@ class CsvViewerApp(ctk.CTk):
             self._open_project_by_path(last_project, show_errors=False)
 
         self._update_title_with_path()
-
+        
+        
     # ------------------------------------------------------------------
     # Appearance / Help
     # ------------------------------------------------------------------
+    def _maximize_window(self):
+        try:
+            self.state("zoomed")   # On Windows this should maximize without hiding taskbar
+        except Exception:
+            # Fallback in case zoomed isn't supported
+            w = self.winfo_screenwidth()
+            h = self.winfo_screenheight()
+            self.geometry(f"{w}x{h}+0+0")
+            
     def _update_window_title(self):
         import os
         name = os.path.basename(self.project_path) if self.project_path else "Untitled"
