@@ -2,10 +2,10 @@
 import tkinter as tk
 
 
-def build_menu_bar(app: "TaskSchedulerApp"):
+def build_menu_bar(app: "CsvViewerApp"):
     """
     Create the top menu bar: File, Appearance, Help.
-    `app` is the root CTk window (TaskSchedulerApp).
+    `app` is the root CTk window (CsvViewerApp).
     """
     menubar = tk.Menu(app)
 
@@ -18,12 +18,17 @@ def build_menu_bar(app: "TaskSchedulerApp"):
     file_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
     file_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
     file_menu.add_separator()
-    file_menu.add_command(label="Save .csv sheet", command=app._save_tasks_to_disk)
-    file_menu.add_command(label="Reload .csv sheet", command=app._reload_tasks_from_disk)
-
+    file_menu.add_command(label="Open CSV...", command=app.open_csv)
+    file_menu.add_command(label="Reload CSV", command=app.reload_csv)
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=app.quit)
     menubar.add_cascade(label="File", menu=file_menu)
+
+    # # ---------- Edit menu ----------
+    edit_menu = tk.Menu(menubar, tearoff=0)
+    edit_menu.add_command(label="Clear Table", command=app.csv_panel.clear_table)
+    menubar.add_cascade(label="Edit", menu=edit_menu)
+
 
     # ---------- Appearance menu ----------
     appearance_menu = tk.Menu(menubar, tearoff=0)

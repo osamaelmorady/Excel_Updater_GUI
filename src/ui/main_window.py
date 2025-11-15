@@ -1,10 +1,14 @@
 # task_scheduler/ui/main_window.py
+import csv
+import os
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
 import customtkinter as ctk
 
-from models import Task
+
+from ui.csv_table_panel import CsvTablePanel
+
 from storage import (
     load_tasks,
     save_tasks,
@@ -12,63 +16,62 @@ from storage import (
     save_tasks_to,
     TASKS_FILE,
 )
-from services.scheduler_service import SchedulerService
-from services.notification_service import TkNotificationService
+
 from services.excel_service import (
     export_tasks_to_excel,
     import_tasks_from_excel,
     ExcelDependencyError,
 )
 
-# NEW: import UI builders
 from ui.menu_bar import build_menu_bar
-from ui.task_form_panel import build_task_form_panel
-from ui.task_list_panel import build_task_list_panel
+from .csv_commands_panel import build_csv_commands_panel
 
 
-class TaskSchedulerApp(ctk.CTk):
+class CsvViewerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # current project path
-        self.project_path: str = TASKS_FILE
-
         # --- Window setup ---
-        self.title("Task Scheduler")
-        self.geometry("1024x800")
+        self.title("CSV Viewer")
+        self.geometry("1024x700")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
-        # Internal storage: list[Task]
-        self.tasks: list[Task] = load_tasks()
+        # current CSV path
+        # --- state ---
+        self.csv_path: str | None = None   # currently opened CSV
+        self.project_path: str | None = None  # currently opened/saved project (YAML)
 
-        # Scheduler + notifier services
-        self.notifier = TkNotificationService()
-        self.scheduler = SchedulerService(self.tasks, self.notifier)
-
-        # Build menu bar (in separate module)
-        build_menu_bar(self)
-
-        # Layout
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=2)
+        # Layout: col 0 = sidebar, col 1 = main area
         self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=0, minsize=260)  # sidebar width
+        self.grid_columnconfigure(1, weight=1)               # main viewer
+        
+        # LEFT: commands panel
+        self.commands_panel = build_csv_commands_panel(self)
 
-        # Build panels (in separate modules)
-        build_task_form_panel(self)
-        build_task_list_panel(self)
+        # RIGHT: CSV table panel
+        self.csv_panel = CsvTablePanel(self)
+        self.csv_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        self.refresh_listbox()
-        self.check_tasks_loop()
-        self._update_window_title()
+        self._update_title_with_path()
+
+        # Menu bar
+        build_menu_bar(self)
+        
+
+
+        # # Main body = CSV table panel
+        # self.csv_panel = CsvTablePanel(self)
+        # self.csv_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
     # ------------------------------------------------------------------
-    # Window / appearance helpers
+    # Appearance / Help
     # ------------------------------------------------------------------
     def _update_window_title(self):
         import os
         name = os.path.basename(self.project_path) if self.project_path else "Untitled"
-        self.title(f"Task Scheduler - {name}")
+        self.title(f"CsvViewerApp - {name}")
 
     def _set_appearance_mode(self, mode: str):
         ctk.set_appearance_mode(mode)
@@ -78,212 +81,224 @@ class TaskSchedulerApp(ctk.CTk):
             "About",
             "Task Scheduler\n\nBuilt with customtkinter.\n© Osama ElMorady's toolbox 😉"
         )
-
     # ------------------------------------------------------------------
-    # Task operations
+    # File actions
     # ------------------------------------------------------------------
-    def add_or_update_task(self):
-        name = self.entry_name.get().strip()
-        date_str = self.entry_date.get().strip()
-        time_str = self.entry_time.get().strip()
-        repeat = self.option_repeat.get()
-        desc = self.text_desc.get("1.0", "end").strip()
-
-        if not name or not date_str or not time_str:
-            messagebox.showerror("Error", "Please fill in task name, date, and time.")
-            return
-
-        try:
-            task = Task.build(
-                name=name,
-                date_str=date_str,
-                time_str=time_str,
-                repeat=repeat,
-                description=desc,
-            )
-        except ValueError:
-            messagebox.showerror("Error", "Invalid date or time format.")
-            return
-
-        selection = self.listbox.curselection()
-        if selection:
-            index = selection[0]
-            self.tasks[index] = task
-        else:
-            self.tasks.append(task)
-
-        self.refresh_listbox()
-        self.clear_form(auto_keep_selection=False)
-
-    def delete_task(self):
-        selection = self.listbox.curselection()
-        if not selection:
-            messagebox.showinfo("Info", "Select a task to delete.")
-            return
-
-        index = selection[0]
-        del self.tasks[index]
-        self.refresh_listbox()
-
-    def on_task_selected(self, event=None):
-        selection = self.listbox.curselection()
-        if not selection:
-            return
-
-        index = selection[0]
-        task = self.tasks[index]
-
-        self.entry_name.delete(0, "end")
-        self.entry_name.insert(0, task.name)
-
-        dt = task.as_datetime()
-        self.entry_date.delete(0, "end")
-        self.entry_date.insert(0, dt.strftime("%Y-%m-%d"))
-
-        self.entry_time.delete(0, "end")
-        self.entry_time.insert(0, dt.strftime("%H:%M"))
-
-        self.option_repeat.set(task.repeat)
-
-        self.text_desc.delete("1.0", "end")
-        self.text_desc.insert("1.0", task.description)
-
-    def clear_form(self, auto_keep_selection=True):
-        self.entry_name.delete(0, "end")
-        self.entry_date.delete(0, "end")
-        self.entry_time.delete(0, "end")
-        self.option_repeat.set("None")
-        self.text_desc.delete("1.0", "end")
-        if not auto_keep_selection:
-            self.listbox.selection_clear(0, "end")
-
-    def refresh_listbox(self):
-        self.listbox.delete(0, "end")
-        for task in self.tasks:
-            done_flag = "✔" if task.done else " "
-            display = f"[{done_flag}] {task.datetime_str} | {task.name} ({task.repeat})"
-            self.listbox.insert("end", display)
-
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
-    def _save_tasks_to_disk(self):
-        try:
-            save_tasks_to(self.tasks, self.project_path)
-            messagebox.showinfo("Saved", "Tasks saved successfully.")
-        except Exception as e:
-            messagebox.showerror("Save Error", f"Failed to save tasks:\n{e}")
-
-    def _reload_tasks_from_disk(self):
-        try:
-            self.tasks = load_tasks_from(self.project_path)
-            self.scheduler.tasks = self.tasks
-            self.refresh_listbox()
-            messagebox.showinfo("Reloaded", "Tasks reloaded from disk.")
-        except Exception as e:
-            messagebox.showerror("Reload Error", f"Failed to reload tasks:\n{e}")
-
-    # ------------------------------------------------------------------
-    # Scheduler integration
-    # ------------------------------------------------------------------
-    def check_tasks_loop(self):
-        self.scheduler.check_due_tasks()
-        self.refresh_listbox()
-        self.after(30000, self.check_tasks_loop)
-
     # ------------------------------------------------------------------
     # File menu actions
     # ------------------------------------------------------------------
+    # -------- File menu: Project handling --------
     def new_project(self):
-        if self.tasks:
-            if not messagebox.askyesno("New Project", "Clear current tasks and start a new project?"):
+        """
+        Clear current CSV and project info.
+        """
+        if self.csv_path:
+            if not messagebox.askyesno(
+                "New Project", "Clear current CSV view and start a new project?"
+            ):
                 return
 
-        self.tasks.clear()
-        self.project_path = TASKS_FILE
-        self.refresh_listbox()
-        self._update_window_title()
+        self.csv_path = None
+        self.project_path = None
+        self.csv_panel.clear_table()
+        self._update_title_with_path()
 
     def open_project(self):
+        """
+        Open a YAML project file that stores at least:
+        csv_path: "path/to/file.csv"
+        """
         path = filedialog.askopenfilename(
             title="Open Project",
-            filetypes=[("Task YAML files", "*.yaml"), ("All files", "*.*")],
-        )
-        if not path:
-            return
-
-        self.project_path = path
-        self.tasks = load_tasks_from(path)
-        self.scheduler.tasks = self.tasks
-        self.refresh_listbox()
-        self._update_window_title()
-
-    def save_project(self):
-        path = filedialog.asksaveasfilename(
-            title="Save Project",
-            defaultextension=".yaml",
-            filetypes=[("Task YAML files", "*.yaml"), ("All files", "*.*")],
+            filetypes=[("Project YAML files", "*.yaml"), ("All files", "*.*")],
         )
         if not path:
             return
 
         try:
-            save_tasks_to(self.tasks, path)
+            project = self._load_project_yaml(path)
+        except Exception as e:
+            messagebox.showerror("Open Project", f"Failed to open project:\n{e}")
+            return
+
+        self.project_path = path
+        self.csv_path = project.get("csv_path")
+
+        if self.csv_path:
+            try:
+                headers, rows = self._load_csv_file(self.csv_path)
+                self.csv_panel.load_data(headers, rows)
+            except Exception as e:
+                messagebox.showerror(
+                    "Open Project", f"Project loaded, but CSV failed:\n{e}"
+                )
+        else:
+            self.csv_panel.clear_table()
+
+        self._update_title_with_path()
+
+    def save_project(self):
+        """
+        Save current state into a YAML project (for now: only csv_path).
+        """
+        if not self.csv_path:
+            if not messagebox.askyesno(
+                "Save Project",
+                "No CSV is open. Save project anyway (without CSV path)?",
+            ):
+                return
+
+        path = filedialog.asksaveasfilename(
+            title="Save Project",
+            defaultextension=".yaml",
+            filetypes=[("Project YAML files", "*.yaml"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        project_data = {
+            "csv_path": self.csv_path or "",
+        }
+
+        try:
+            self._save_project_yaml(path, project_data)
             self.project_path = path
-            self.scheduler.tasks = self.tasks
-            self._update_window_title()
             messagebox.showinfo("Save Project", f"Project saved to:\n{path}")
         except Exception as e:
             messagebox.showerror("Save Project", f"Failed to save project:\n{e}")
 
+    def _load_project_yaml(self, path: str) -> dict:
+        """
+        VERY simple YAML reader for key: value pairs.
+        Enough for now and still valid YAML for the future.
+        """
+        project = {}
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if ":" not in line:
+                    continue
+                key, value = line.split(":", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                project[key] = value
+        return project
+
+    def _save_project_yaml(self, path: str, data: dict) -> None:
+        lines = []
+        for key, value in data.items():
+            if value is None:
+                value = ""
+            # basic quoting; you can improve later
+            lines.append(f'{key}: "{value}"')
+        text = "\n".join(lines) + "\n"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+
     def export_to_excel(self):
-        if not self.tasks:
-            messagebox.showinfo("Export to Excel", "There are no tasks to export.")
-            return
-
-        path = filedialog.asksaveasfilename(
-            title="Export to Excel",
-            defaultextension=".xlsx",
-            filetypes=[("Excel files", "*.xlsx")],
+        """
+        Placeholder: you can later export current table to Excel.
+        """
+        messagebox.showinfo(
+            "Export to Excel",
+            "Export to Excel is not implemented yet.\n\n"
+            "Later, we can export the current CSV table to .xlsx using pandas.",
         )
-        if not path:
-            return
-
-        try:
-            export_tasks_to_excel(self.tasks, path)
-            messagebox.showinfo("Export to Excel", f"Tasks exported to:\n{path}")
-        except ExcelDependencyError as e:
-            messagebox.showerror("Excel Export", str(e))
-        except Exception as e:
-            messagebox.showerror("Excel Export", f"Failed to export tasks:\n{e}")
 
     def import_from_excel(self):
+        """
+        Placeholder: you can later import Excel and show it in the table.
+        """
+        messagebox.showinfo(
+            "Import from Excel",
+            "Import from Excel is not implemented yet.\n\n"
+            "Later, we can load .xlsx and display it like a CSV.",
+        )
+
+    
+    
+    def open_csv(self):
         path = filedialog.askopenfilename(
-            title="Import from Excel",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            title="Open CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
         )
         if not path:
             return
 
         try:
-            imported = import_tasks_from_excel(path)
-        except ExcelDependencyError as e:
-            messagebox.showerror("Excel Import", str(e))
-            return
+            headers, rows = self._load_csv_file(path)
         except Exception as e:
-            messagebox.showerror("Excel Import", f"Failed to import tasks:\n{e}")
+            messagebox.showerror("Open CSV", f"Failed to open CSV:\n{e}")
             return
 
-        if not imported:
-            messagebox.showinfo("Excel Import", "No tasks found in the selected file.")
+        self.csv_path = path
+        self.csv_panel.load_data(headers, rows)
+        self._update_title_with_path()
+
+    def reload_csv(self):
+        if not self.csv_path:
+            messagebox.showinfo("Reload CSV", "No CSV file is currently open.")
             return
 
-        self.tasks.extend(imported)
-        self.scheduler.tasks = self.tasks
-        self.refresh_listbox()
-        messagebox.showinfo("Excel Import", f"Imported {len(imported)} tasks.")
+        try:
+            headers, rows = self._load_csv_file(self.csv_path)
+        except Exception as e:
+            messagebox.showerror("Reload CSV", f"Failed to reload CSV:\n{e}")
+            return
+
+        self.csv_panel.load_data(headers, rows)
+        self._update_title_with_path()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _load_csv_file(self, path: str):
+        """
+        Simple CSV loader using Python's csv module.
+        - Assumes UTF-8.
+        - Uses comma delimiter by default.
+        """
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
+
+        if not rows:
+            return [], []
+
+        headers = rows[0]
+        data_rows = rows[1:]
+        return headers, data_rows
+
+    def _update_title_with_path(self):
+        if not self.csv_path:
+            self.title("CSV Viewer")
+        else:
+            name = os.path.basename(self.csv_path)
+            self.title(f"CSV Viewer - {name}")
+            
+            
+
+    # ------------------------------------------------------------------
+    # CSV edit commands (stubs for now)
+    # ------------------------------------------------------------------
+    def add_row(self):
+        messagebox.showinfo("Add Row", "Add Row is not implemented yet.\n(You can implement it later.)")
+
+    def add_column(self):
+        messagebox.showinfo("Add Column", "Add Column is not implemented yet.\n(You can implement it later.)")
+
+    def delete_row(self):
+        messagebox.showinfo("Delete Row", "Delete Row is not implemented yet.\n(You can implement it later.)")
+
+    def delete_column(self):
+        messagebox.showinfo("Delete Column", "Delete Column is not implemented yet.\n(You can implement it later.)")
+
+            
 
 
 def run_app():
-    app = TaskSchedulerApp()
+    app = CsvViewerApp()
     app.mainloop()
