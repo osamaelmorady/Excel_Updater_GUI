@@ -2,7 +2,7 @@
 from tkinter import messagebox
 
 
-class ExcelApiMixin:
+class excel_mgr:
     """
     Mixin providing Excel-related APIs.
 

@@ -1,11 +1,15 @@
 # task_scheduler/ui/menu_panel.py
 import tkinter as tk
 
+# from managers.project_mgr import *
+# from managers.excel_mgr import *
+# from managers.csv_mgr import *
 
-def build_menu_bar(app: "CsvViewerApp"):
+
+def build_menu_bar(app: "ExcelViewerApp"):
     """
     Create the top menu bar: File, Appearance, Help.
-    `app` is the root CTk window (CsvViewerApp).
+    `app` is the root CTk window (ExcelViewerApp).
     """
     menubar = tk.Menu(app)
 
@@ -23,7 +27,7 @@ def build_menu_bar(app: "CsvViewerApp"):
 
     # # ---------- Edit menu ----------
     edit_menu = tk.Menu(menubar, tearoff=0)
-    edit_menu.add_command(label="Clear Table", command=app.csv_panel.clear_table)
+    edit_menu.add_command(label="Clear Table", command=app.dummy)
     menubar.add_cascade(label="Edit", menu=edit_menu)
 
     # # ---------- Run menu ----------
@@ -39,8 +43,8 @@ def build_menu_bar(app: "CsvViewerApp"):
     view_menu = tk.Menu(menubar, tearoff=0)
     
     window_menu = tk.Menu(view_menu, tearoff=0)
-    window_menu.add_command(label="Full Screen", accelerator="F11", command=app.csv_panel.clear_table)
-    window_menu.add_command(label="Window", accelerator="F12", command=app.csv_panel.clear_table)
+    window_menu.add_command(label="Full Screen", accelerator="F11", command=app.dummy)
+    window_menu.add_command(label="Window", accelerator="F12", command=app.dummy)
     view_menu.add_cascade(label="Window", menu=window_menu) 
 
     
@@ -60,3 +64,6 @@ def build_menu_bar(app: "CsvViewerApp"):
     app.config(menu=menubar)
 
     return menubar
+
+
+

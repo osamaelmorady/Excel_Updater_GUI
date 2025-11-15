@@ -16,7 +16,7 @@ def index_to_col_name(index: int) -> str:
     return name
 
 
-class CsvTablePanel(ctk.CTkFrame):
+class ExcelPanel(ctk.CTkFrame):
     """
     Right panel that shows CSV content in a tksheet Sheet widget:
     - full grid (like Excel / Google Sheets)
@@ -25,7 +25,7 @@ class CsvTablePanel(ctk.CTkFrame):
     - editable cells
     """
 
-    def __init__(self, master: "CsvViewerApp", **kwargs):
+    def __init__(self, master: "ExcelViewerApp", **kwargs):
         super().__init__(master, corner_radius=10, **kwargs)
 
         # Row 0 = title, row 1 = sheet (expands)
@@ -121,13 +121,13 @@ class CsvTablePanel(ctk.CTkFrame):
         self.sheet.refresh()
 
 
-    def get_data(self):
-        """
-        Return current sheet data as list of rows (list[list[str]]).
-        """
-        try:
-            # newer tksheet versions
-            return self.sheet.get_sheet_data(return_copy=True)
-        except TypeError:
-            # older versions without the argument
-            return self.sheet.get_sheet_data()
+    # def get_data(self):
+    #     """
+    #     Return current sheet data as list of rows (list[list[str]]).
+    #     """
+    #     try:
+    #         # newer tksheet versions
+    #         return self.sheet.get_sheet_data(return_copy=True)
+    #     except TypeError:
+    #         # older versions without the argument
+    #         return self.sheet.get_sheet_data()

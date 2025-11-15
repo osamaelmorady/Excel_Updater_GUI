@@ -3,10 +3,10 @@ import os
 import traceback
 from tkinter import messagebox, filedialog
 
-from settings_mgr import add_recent_project
+from managers.settings_mgr import add_recent_project
 
 
-class ProjectApiMixin:
+class project_mgr:
     """
     Mixin providing project-level APIs:
     - new_project
