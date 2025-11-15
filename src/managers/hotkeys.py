@@ -1,8 +1,8 @@
-# task_scheduler/ui/hotkeys.py
+# task_scheduler/ui/hotkeys_mgr.py
 
 def register_hotkeys(app: "CsvViewerApp"):
     """
-    Register global hotkeys for the application.
+    Register global hotkeys_mgr for the application.
 
     - Ctrl+N : New Project
     - Ctrl+O : Open CSV

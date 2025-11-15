@@ -1,4 +1,4 @@
-# settings_manager.py
+# settings_mgr.py
 import json
 import os
 
