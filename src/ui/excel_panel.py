@@ -1,4 +1,4 @@
-# task_scheduler/ui/csv_table_panel.py
+# task_scheduler/ui/excel_panel.py
 import customtkinter as ctk
 from tksheet import Sheet
 

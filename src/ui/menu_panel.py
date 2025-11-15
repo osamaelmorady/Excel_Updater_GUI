@@ -1,4 +1,4 @@
-# task_scheduler/ui/menu_bar.py
+# task_scheduler/ui/menu_panel.py
 import tkinter as tk
 
 
