@@ -1,11 +1,10 @@
 # task_scheduler/ui/main_window.py
 import tkinter as tk
-from tkinter import messagebox, filedialog   # 👈 filedialog comes from tkinter
+from tkinter import messagebox, filedialog
 
 import customtkinter as ctk
 
 from models import Task
-
 from storage import (
     load_tasks,
     save_tasks,
@@ -13,16 +12,18 @@ from storage import (
     save_tasks_to,
     TASKS_FILE,
 )
-
 from services.scheduler_service import SchedulerService
 from services.notification_service import TkNotificationService
-
 from services.excel_service import (
     export_tasks_to_excel,
     import_tasks_from_excel,
     ExcelDependencyError,
 )
 
+# NEW: import UI builders
+from ui.menu_bar import build_menu_bar
+from ui.task_form_panel import build_task_form_panel
+from ui.task_list_panel import build_task_list_panel
 
 
 class TaskSchedulerApp(ctk.CTk):
@@ -45,79 +46,31 @@ class TaskSchedulerApp(ctk.CTk):
         self.notifier = TkNotificationService()
         self.scheduler = SchedulerService(self.tasks, self.notifier)
 
-        self.build_menu_bar()
+        # Build menu bar (in separate module)
+        build_menu_bar(self)
 
         # Layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
-        self._build_left_panel()
-        self._build_right_panel()
+        # Build panels (in separate modules)
+        build_task_form_panel(self)
+        build_task_list_panel(self)
 
         self.refresh_listbox()
         self.check_tasks_loop()
-        
-     
         self._update_window_title()
-        
-        
-        
+
+    # ------------------------------------------------------------------
+    # Window / appearance helpers
+    # ------------------------------------------------------------------
     def _update_window_title(self):
-        # show current project file name in title bar
         import os
         name = os.path.basename(self.project_path) if self.project_path else "Untitled"
         self.title(f"Task Scheduler - {name}")
 
-        
-        
-       
-    def build_menu_bar(self):
-        """Create the top menu bar: File, Edit, Appearance, Help."""
-        menubar = tk.Menu(self)
-
-
-        # ---------- File menu ----------
-        file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="New Project", command=self.new_project)
-        file_menu.add_command(label="Open Project...", command=self.open_project)
-        file_menu.add_command(label="Save Project...", command=self.save_project)
-        file_menu.add_separator()
-        file_menu.add_command(label="Save Tasks", command=self._save_tasks_to_disk)
-        file_menu.add_command(label="Reload Tasks", command=self._reload_tasks_from_disk)
-        file_menu.add_separator()
-        file_menu.add_command(label="Export to Excel...", command=self.export_to_excel)
-        file_menu.add_command(label="Import from Excel...", command=self.import_from_excel)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.quit)
-        menubar.add_cascade(label="File", menu=file_menu)
-
-        # ---------- Appearance menu ----------
-        appearance_menu = tk.Menu(menubar, tearoff=0)
-        appearance_menu.add_radiobutton(
-            label="System",
-            command=lambda: self._set_appearance_mode("System")
-        )
-        appearance_menu.add_radiobutton(
-            label="Light",
-            command=lambda: self._set_appearance_mode("Light")
-        )
-        appearance_menu.add_radiobutton(
-            label="Dark",
-            command=lambda: self._set_appearance_mode("Dark")
-        )
-        menubar.add_cascade(label="Appearance", menu=appearance_menu)
-
-        # ---------- Help menu ----------
-        help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="About", command=self._show_about_dialog)
-        menubar.add_cascade(label="Help", menu=help_menu)
-
-        # Attach to window
-        self.config(menu=menubar)
-
     def _set_appearance_mode(self, mode: str):
-        """Change global appearance mode for customtkinter."""
         ctk.set_appearance_mode(mode)
 
     def _show_about_dialog(self):
@@ -125,85 +78,6 @@ class TaskSchedulerApp(ctk.CTk):
             "About",
             "Task Scheduler\n\nBuilt with customtkinter.\n© Osama ElMorady's toolbox 😉"
         )
-
-
-    # ------------------------------------------------------------------
-    # UI building
-    # ------------------------------------------------------------------
-    def _build_left_panel(self):
-        frame = ctk.CTkFrame(self, corner_radius=10)
-        frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        frame.grid_columnconfigure(0, weight=1)
-
-        title_label = ctk.CTkLabel(frame, text="New Task", font=ctk.CTkFont(size=18, weight="bold"))
-        title_label.grid(row=0, column=0, pady=(10, 15))
-
-        # Task name
-        ctk.CTkLabel(frame, text="Task name:").grid(row=1, column=0, sticky="w", padx=10)
-        self.entry_name = ctk.CTkEntry(frame, placeholder_text="e.g. Pay bills")
-        self.entry_name.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
-
-        # Date
-        ctk.CTkLabel(frame, text="Date (YYYY-MM-DD):").grid(row=3, column=0, sticky="w", padx=10)
-        self.entry_date = ctk.CTkEntry(frame, placeholder_text="2025-11-15")
-        self.entry_date.grid(row=4, column=0, sticky="ew", padx=10, pady=(0, 10))
-
-        # Time
-        ctk.CTkLabel(frame, text="Time (HH:MM):").grid(row=5, column=0, sticky="w", padx=10)
-        self.entry_time = ctk.CTkEntry(frame, placeholder_text="14:30")
-        self.entry_time.grid(row=6, column=0, sticky="ew", padx=10, pady=(0, 10))
-
-        # Repeat
-        ctk.CTkLabel(frame, text="Repeat:").grid(row=7, column=0, sticky="w", padx=10)
-        self.option_repeat = ctk.CTkOptionMenu(
-            frame,
-            values=["None", "Daily", "Weekly"],
-        )
-        self.option_repeat.set("None")
-        self.option_repeat.grid(row=8, column=0, sticky="ew", padx=10, pady=(0, 10))
-
-        # (Future) priority / category widgets can be added here easily
-
-        # Description
-        ctk.CTkLabel(frame, text="Description (optional):").grid(row=9, column=0, sticky="w", padx=10)
-        self.text_desc = ctk.CTkTextbox(frame, height=80)
-        self.text_desc.grid(row=10, column=0, sticky="nsew", padx=10, pady=(0, 10))
-        frame.grid_rowconfigure(10, weight=1)
-
-        # Buttons
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_frame.grid(row=11, column=0, pady=10)
-
-        self.btn_add = ctk.CTkButton(btn_frame, text="Add / Update Task", command=self.add_or_update_task)
-        self.btn_add.grid(row=0, column=0, padx=5)
-
-        self.btn_clear = ctk.CTkButton(btn_frame, text="Clear Form", command=self.clear_form)
-        self.btn_clear.grid(row=0, column=1, padx=5)
-
-    def _build_right_panel(self):
-        frame = ctk.CTkFrame(self, corner_radius=10)
-        frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        frame.grid_rowconfigure(1, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
-
-        title_label = ctk.CTkLabel(frame, text="Scheduled Tasks", font=ctk.CTkFont(size=18, weight="bold"))
-        title_label.grid(row=0, column=0, pady=(10, 5))
-
-        self.listbox = tk.Listbox(frame, height=15)
-        self.listbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
-        self.listbox.bind("<<ListboxSelect>>", self.on_task_selected)
-
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_frame.grid(row=2, column=0, pady=10)
-
-        self.btn_delete = ctk.CTkButton(btn_frame, text="Delete Task", command=self.delete_task)
-        self.btn_delete.grid(row=0, column=0, padx=5)
-
-        self.btn_save = ctk.CTkButton(btn_frame, text="Save Tasks", command=self._save_tasks_to_disk)
-        self.btn_save.grid(row=0, column=1, padx=5)
-
-        self.btn_reload = ctk.CTkButton(btn_frame, text="Reload from File", command=self._reload_tasks_from_disk)
-        self.btn_reload.grid(row=0, column=2, padx=5)
 
     # ------------------------------------------------------------------
     # Task operations
@@ -226,7 +100,6 @@ class TaskSchedulerApp(ctk.CTk):
                 time_str=time_str,
                 repeat=repeat,
                 description=desc,
-                # priority/category default for now
             )
         except ValueError:
             messagebox.showerror("Error", "Invalid date or time format.")
@@ -288,7 +161,6 @@ class TaskSchedulerApp(ctk.CTk):
         self.listbox.delete(0, "end")
         for task in self.tasks:
             done_flag = "✔" if task.done else " "
-            # priority displayed later if you like: f"{task.priority}"
             display = f"[{done_flag}] {task.datetime_str} | {task.name} ({task.repeat})"
             self.listbox.insert("end", display)
 
@@ -296,34 +168,38 @@ class TaskSchedulerApp(ctk.CTk):
     # Persistence
     # ------------------------------------------------------------------
     def _save_tasks_to_disk(self):
-        save_tasks(self.tasks)
-        messagebox.showinfo("Saved", "Tasks saved successfully.")
+        try:
+            save_tasks_to(self.tasks, self.project_path)
+            messagebox.showinfo("Saved", "Tasks saved successfully.")
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save tasks:\n{e}")
 
     def _reload_tasks_from_disk(self):
-        self.tasks = load_tasks()
-        self.scheduler.tasks = self.tasks  # keep scheduler in sync
-        self.refresh_listbox()
-        messagebox.showinfo("Reloaded", "Tasks reloaded from disk.")
+        try:
+            self.tasks = load_tasks_from(self.project_path)
+            self.scheduler.tasks = self.tasks
+            self.refresh_listbox()
+            messagebox.showinfo("Reloaded", "Tasks reloaded from disk.")
+        except Exception as e:
+            messagebox.showerror("Reload Error", f"Failed to reload tasks:\n{e}")
 
     # ------------------------------------------------------------------
     # Scheduler integration
     # ------------------------------------------------------------------
     def check_tasks_loop(self):
-        """Call scheduler service periodically."""
         self.scheduler.check_due_tasks()
         self.refresh_listbox()
         self.after(30000, self.check_tasks_loop)
-        
 
-    # -------- File menu actions --------
-    # -------- File menu actions --------
+    # ------------------------------------------------------------------
+    # File menu actions
+    # ------------------------------------------------------------------
     def new_project(self):
         if self.tasks:
             if not messagebox.askyesno("New Project", "Clear current tasks and start a new project?"):
                 return
 
         self.tasks.clear()
-        # you can later change TASKS_FILE to a default .yaml if you want
         self.project_path = TASKS_FILE
         self.refresh_listbox()
         self._update_window_title()
@@ -338,7 +214,7 @@ class TaskSchedulerApp(ctk.CTk):
 
         self.project_path = path
         self.tasks = load_tasks_from(path)
-        self.scheduler.tasks = self.tasks  # keep scheduler in sync
+        self.scheduler.tasks = self.tasks
         self.refresh_listbox()
         self._update_window_title()
 
@@ -352,19 +228,13 @@ class TaskSchedulerApp(ctk.CTk):
             return
 
         try:
-            # save current tasks to the chosen file
             save_tasks_to(self.tasks, path)
-
-            # update current project info
             self.project_path = path
-            self.scheduler.tasks = self.tasks  # keep scheduler in sync
+            self.scheduler.tasks = self.tasks
             self._update_window_title()
-
             messagebox.showinfo("Save Project", f"Project saved to:\n{path}")
         except Exception as e:
             messagebox.showerror("Save Project", f"Failed to save project:\n{e}")
-
-        
 
     def export_to_excel(self):
         if not self.tasks:
@@ -387,7 +257,6 @@ class TaskSchedulerApp(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Excel Export", f"Failed to export tasks:\n{e}")
 
-
     def import_from_excel(self):
         path = filedialog.askopenfilename(
             title="Import from Excel",
@@ -409,27 +278,11 @@ class TaskSchedulerApp(ctk.CTk):
             messagebox.showinfo("Excel Import", "No tasks found in the selected file.")
             return
 
-        # merge or replace?  -> here we append
         self.tasks.extend(imported)
         self.scheduler.tasks = self.tasks
         self.refresh_listbox()
         messagebox.showinfo("Excel Import", f"Imported {len(imported)} tasks.")
 
-    def _save_tasks_to_disk(self):
-        try:
-            save_tasks_to(self.tasks, self.project_path)
-            messagebox.showinfo("Saved", "Tasks saved successfully.")
-        except Exception as e:
-            messagebox.showerror("Save Error", f"Failed to save tasks:\n{e}")
-
-    def _reload_tasks_from_disk(self):
-        try:
-            self.tasks = load_tasks_from(self.project_path)
-            self.scheduler.tasks = self.tasks
-            self.refresh_listbox()
-            messagebox.showinfo("Reloaded", "Tasks reloaded from disk.")
-        except Exception as e:
-            messagebox.showerror("Reload Error", f"Failed to reload tasks:\n{e}")
 
 def run_app():
     app = TaskSchedulerApp()
