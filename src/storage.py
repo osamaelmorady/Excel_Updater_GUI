@@ -7,7 +7,7 @@ from models import Task
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-TASKS_FILE = os.path.join(DATA_DIR, "tasks.json")
+TASKS_FILE = os.path.join(DATA_DIR, "tasks.json")  # default project
 
 
 def ensure_data_dir() -> None:
@@ -15,19 +15,30 @@ def ensure_data_dir() -> None:
 
 
 def load_tasks() -> List[Task]:
-    if not os.path.exists(TASKS_FILE):
-        return []
-
-    try:
-        with open(TASKS_FILE, "r", encoding="utf-8") as f:
-            raw_list = json.load(f)
-        return [Task.from_dict(d) for d in raw_list]
-    except Exception:
-        # corrupted file, bad JSON, etc.
-        return []
+    """Load from default project file."""
+    return load_tasks_from(TASKS_FILE)
 
 
 def save_tasks(tasks: List[Task]) -> None:
-    ensure_data_dir()
-    with open(TASKS_FILE, "w", encoding="utf-8") as f:
+    """Save to default project file."""
+    save_tasks_to(tasks, TASKS_FILE)
+
+
+def load_tasks_from(path: str) -> List[Task]:
+    """Load tasks from a specific JSON file path."""
+    if not os.path.exists(path):
+        return []
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw_list = json.load(f)
+        return [Task.from_dict(d) for d in raw_list]
+    except Exception:
+        return []
+
+
+def save_tasks_to(tasks: List[Task], path: str) -> None:
+    """Save tasks to a specific JSON file path."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump([t.to_dict() for t in tasks], f, indent=4)

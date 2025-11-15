@@ -7,4 +7,3 @@ REM call venv\Scripts\activate.bat
 REM Run Python script
 py -u src\main.py
 
-pause
