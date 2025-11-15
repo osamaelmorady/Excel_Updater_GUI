@@ -11,17 +11,14 @@ def build_menu_bar(app: "CsvViewerApp"):
 
     # ---------- File menu ----------
     file_menu = tk.Menu(menubar, tearoff=0)
-    file_menu.add_command(label="New Project", command=app.new_project)
-    file_menu.add_command(label="Open Project...", command=app.open_project)
-    file_menu.add_command(label="Save Project...", command=app.save_project)
+    file_menu.add_command(label="New Project...", command=app.new_project, accelerator="Ctrl+N")
+    file_menu.add_command(label="Open Project...", command=app.open_project, accelerator="Ctrl+O")
+    file_menu.add_command(label="Save Project As...", command=app.save_project, accelerator="Ctrl+S")
     file_menu.add_separator()
     file_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
     file_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
     file_menu.add_separator()
-    file_menu.add_command(label="Open CSV...", command=app.open_csv)
-    file_menu.add_command(label="Reload CSV", command=app.reload_csv)
-    file_menu.add_separator()
-    file_menu.add_command(label="Exit", command=app.quit)
+    file_menu.add_command(label="Exit", command=app.quit, accelerator="Esc")
     menubar.add_cascade(label="File", menu=file_menu)
 
     # # ---------- Edit menu ----------
@@ -29,26 +26,34 @@ def build_menu_bar(app: "CsvViewerApp"):
     edit_menu.add_command(label="Clear Table", command=app.csv_panel.clear_table)
     menubar.add_cascade(label="Edit", menu=edit_menu)
 
+    # # ---------- Run menu ----------
+    CSV_menu = tk.Menu(menubar, tearoff=0)
+    CSV_menu.add_command(label="New..", command=app.create_new_csv)
+    CSV_menu.add_command(label="Open..", command=app.open_csv)
+    CSV_menu.add_command(label="Reload..", command=app.reload_csv)
+    CSV_menu.add_command(label="Save As", command=app.save_csv)
+    menubar.add_cascade(label="CSV", menu=CSV_menu)
 
-    # ---------- Appearance menu ----------
-    appearance_menu = tk.Menu(menubar, tearoff=0)
-    appearance_menu.add_radiobutton(
-        label="System",
-        command=lambda: app._set_appearance_mode("System")
-    )
-    appearance_menu.add_radiobutton(
-        label="Light",
-        command=lambda: app._set_appearance_mode("Light")
-    )
-    appearance_menu.add_radiobutton(
-        label="Dark",
-        command=lambda: app._set_appearance_mode("Dark")
-    )
-    menubar.add_cascade(label="Appearance", menu=appearance_menu)
 
+    # # ---------- View menu ----------
+    view_menu = tk.Menu(menubar, tearoff=0)
+    
+    window_menu = tk.Menu(view_menu, tearoff=0)
+    window_menu.add_command(label="Full Screen", accelerator="F11", command=app.csv_panel.clear_table)
+    window_menu.add_command(label="Window", accelerator="F12", command=app.csv_panel.clear_table)
+    view_menu.add_cascade(label="Window", menu=window_menu) 
+
+    
+    appearance_menu = tk.Menu(view_menu, tearoff=0)
+    appearance_menu.add_radiobutton(label="System",command=lambda: app._set_appearance_mode("System") )
+    appearance_menu.add_radiobutton( label="Light", command=lambda: app._set_appearance_mode("Light") )
+    appearance_menu.add_radiobutton( label="Dark", command=lambda: app._set_appearance_mode("Dark")  )
+    view_menu.add_cascade(label="Appearance", menu=appearance_menu)
+    menubar.add_cascade(label="View", menu=view_menu)
+    
     # ---------- Help menu ----------
     help_menu = tk.Menu(menubar, tearoff=0)
-    help_menu.add_command(label="About", command=app._show_about_dialog)
+    help_menu.add_command(label="About", command=app._show_about_dialog,  accelerator="F1")
     menubar.add_cascade(label="Help", menu=help_menu)
 
     # Attach to window

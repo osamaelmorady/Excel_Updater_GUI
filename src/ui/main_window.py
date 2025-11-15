@@ -5,17 +5,11 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 
 import customtkinter as ctk
-
+from .hotkeys import register_hotkeys
 
 from ui.csv_table_panel import CsvTablePanel
+from settings_manager import load_settings, add_recent_project
 
-from storage import (
-    load_tasks,
-    save_tasks,
-    load_tasks_from,
-    save_tasks_to,
-    TASKS_FILE,
-)
 
 from services.excel_service import (
     export_tasks_to_excel,
@@ -59,11 +53,20 @@ class CsvViewerApp(ctk.CTk):
         # Menu bar
         build_menu_bar(self)
         
+        # 🔥 Register global hotkeys
+        register_hotkeys(self)
 
+        self._update_title_with_path()
+        
+        # --- NEW: load settings & auto-open last project if available ---
+        self.settings = load_settings()
+        recent = self.settings.get("recent_projects", [])
+        if recent:
+            last_project = recent[0]
+            # don't spam error popups on startup; fail silently
+            self._open_project_by_path(last_project, show_errors=False)
 
-        # # Main body = CSV table panel
-        # self.csv_panel = CsvTablePanel(self)
-        # self.csv_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self._update_title_with_path()
 
     # ------------------------------------------------------------------
     # Appearance / Help
@@ -104,10 +107,6 @@ class CsvViewerApp(ctk.CTk):
         self._update_title_with_path()
 
     def open_project(self):
-        """
-        Open a YAML project file that stores at least:
-        csv_path: "path/to/file.csv"
-        """
         path = filedialog.askopenfilename(
             title="Open Project",
             filetypes=[("Project YAML files", "*.yaml"), ("All files", "*.*")],
@@ -115,32 +114,10 @@ class CsvViewerApp(ctk.CTk):
         if not path:
             return
 
-        try:
-            project = self._load_project_yaml(path)
-        except Exception as e:
-            messagebox.showerror("Open Project", f"Failed to open project:\n{e}")
-            return
+        self._open_project_by_path(path, show_errors=True)
 
-        self.project_path = path
-        self.csv_path = project.get("csv_path")
-
-        if self.csv_path:
-            try:
-                headers, rows = self._load_csv_file(self.csv_path)
-                self.csv_panel.load_data(headers, rows)
-            except Exception as e:
-                messagebox.showerror(
-                    "Open Project", f"Project loaded, but CSV failed:\n{e}"
-                )
-        else:
-            self.csv_panel.clear_table()
-
-        self._update_title_with_path()
 
     def save_project(self):
-        """
-        Save current state into a YAML project (for now: only csv_path).
-        """
         if not self.csv_path:
             if not messagebox.askyesno(
                 "Save Project",
@@ -163,9 +140,14 @@ class CsvViewerApp(ctk.CTk):
         try:
             self._save_project_yaml(path, project_data)
             self.project_path = path
+
+            # 🔥 update recent projects & settings
+            self.settings = add_recent_project(path)
+
             messagebox.showinfo("Save Project", f"Project saved to:\n{path}")
         except Exception as e:
             messagebox.showerror("Save Project", f"Failed to save project:\n{e}")
+
 
     def _load_project_yaml(self, path: str) -> dict:
         """
@@ -198,6 +180,56 @@ class CsvViewerApp(ctk.CTk):
             f.write(text)
 
 
+    def _open_project_by_path(self, path: str, show_errors: bool = True):
+        """
+        Core logic to open a project from a given path.
+        Used by both 'Open Project...' and startup auto-load.
+        """
+        import traceback
+
+        try:
+            project = self._load_project_yaml(path)
+        except Exception as e:
+            if show_errors:
+                messagebox.showerror("Open Project", f"Failed to open project:\n{e}")
+            else:
+                # optional: print to console
+                print("Failed to open project on startup:")
+                traceback.print_exc()
+            return
+
+        self.project_path = path
+        self.csv_path = project.get("csv_path") or None
+
+        # Update recent_projects in settings
+        self.settings = add_recent_project(path)
+
+        if self.csv_path:
+            try:
+                rows = self._load_csv_file(self.csv_path)
+                self.csv_panel.load_data(rows)
+            except Exception as e:
+                if show_errors:
+                    messagebox.showerror(
+                        "Open Project", f"Project loaded, but CSV failed:\n{e}"
+                    )
+        else:
+            self.csv_panel.clear_table()
+
+        self._update_title_with_path()
+
+
+
+
+
+
+
+    # ------------------------------------------------------------------
+    # Excel helpers
+    # ------------------------------------------------------------------
+
+
+
     def export_to_excel(self):
         """
         Placeholder: you can later export current table to Excel.
@@ -219,6 +251,51 @@ class CsvViewerApp(ctk.CTk):
         )
 
     
+    # ------------------------------------------------------------------
+    # CSV helpers
+    # ------------------------------------------------------------------
+    def create_new_csv(self):
+        """
+        Create a brand new (empty) CSV file and open it in the viewer.
+        If a CSV is already open, it is simply replaced in the UI.
+        """
+        # Ask the user where to create the new CSV
+        initialfile = "new.csv"
+        initialdir = os.path.dirname(self.csv_path) if self.csv_path else ""
+
+        path = filedialog.asksaveasfilename(
+            title="Create New CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile=initialfile,
+            initialdir=initialdir or None,
+        )
+
+        # User cancelled the dialog
+        if not path:
+            return
+
+        try:
+            # Physically create a new, empty CSV file with one empty cell
+            # (A1) so the sheet shows 1 row, 1 column.
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([""])   # one empty cell
+
+            # Update app state to point to this new CSV
+            self.csv_path = path
+
+            # Load a single empty cell into the sheet
+            self.csv_panel.load_data([[""]])
+
+            # Update window title
+            self._update_title_with_path()
+
+            messagebox.showinfo("Create CSV", f"New CSV created:\n{path}")
+        except Exception as e:
+            messagebox.showerror("Create CSV", f"Failed to create CSV:\n{e}")
+
+
     
     def open_csv(self):
         path = filedialog.askopenfilename(
@@ -229,13 +306,13 @@ class CsvViewerApp(ctk.CTk):
             return
 
         try:
-            headers, rows = self._load_csv_file(path)
+            rows = self._load_csv_file(path)
         except Exception as e:
             messagebox.showerror("Open CSV", f"Failed to open CSV:\n{e}")
             return
 
         self.csv_path = path
-        self.csv_panel.load_data(headers, rows)
+        self.csv_panel.load_data(rows)
         self._update_title_with_path()
 
     def reload_csv(self):
@@ -244,33 +321,58 @@ class CsvViewerApp(ctk.CTk):
             return
 
         try:
-            headers, rows = self._load_csv_file(self.csv_path)
+            rows = self._load_csv_file(self.csv_path)
         except Exception as e:
             messagebox.showerror("Reload CSV", f"Failed to reload CSV:\n{e}")
             return
 
-        self.csv_panel.load_data(headers, rows)
+        self.csv_panel.load_data(rows)
         self._update_title_with_path()
+        
+    def save_csv(self):
+        """
+        Save the current sheet data to a CSV file.
+        """
+        rows = self.csv_panel.get_data()
+        if not rows:
+            messagebox.showinfo("Save CSV", "There is no data to save.")
+            return
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
+        # Suggest current file name if we have one
+        initialfile = os.path.basename(self.csv_path) if self.csv_path else "data.csv"
+        initialdir = os.path.dirname(self.csv_path) if self.csv_path else ""
+
+        path = filedialog.asksaveasfilename(
+            title="Save CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile=initialfile,
+            initialdir=initialdir or None,
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                for row in rows:
+                    writer.writerow(row)
+
+            self.csv_path = path
+            self._update_title_with_path()
+            messagebox.showinfo("Save CSV", f"CSV saved to:\n{path}")
+        except Exception as e:
+            messagebox.showerror("Save CSV", f"Failed to save CSV:\n{e}")
+
+    
+    
     def _load_csv_file(self, path: str):
-        """
-        Simple CSV loader using Python's csv module.
-        - Assumes UTF-8.
-        - Uses comma delimiter by default.
-        """
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv.reader(f)
             rows = list(reader)
 
-        if not rows:
-            return [], []
-
-        headers = rows[0]
-        data_rows = rows[1:]
-        return headers, data_rows
+        # return all rows; viewer will handle headers visually (A, B, C, ...)
+        return rows
 
     def _update_title_with_path(self):
         if not self.csv_path:
