@@ -49,19 +49,33 @@ def register_hotkeys(app: "CsvViewerApp"):
         return "break" 
     
     
+    def _on_f11(event=None):
+        # maximize window to full screen
+        if hasattr(app, "_maximize_window"):
+            app._maximize_window()
+        return "break" 
+    
+    
+    def _on_f12(event=None):
+        # minimize window to ("1024x700")
+        if hasattr(app, "_minimize_window"):
+            app._minimize_window()
+        return "break"         
+    
 
     # --- Bindings ---
     #
     # --- Bindings (global) ---
     app.bind_all("<Control-n>", _on_ctrl_n)
     app.bind_all("<Control-N>", _on_ctrl_n)
-
     app.bind_all("<Control-o>", _on_ctrl_o)
     app.bind_all("<Control-O>", _on_ctrl_o)
-
     app.bind_all("<Control-s>", _on_ctrl_s)
     app.bind_all("<Control-S>", _on_ctrl_s)
 
     app.bind_all("<Escape>", _on_escape)
+    
     app.bind_all("<F1>", _on_f1)
-    app.bind_all("<F1>", _on_f5)
+    app.bind_all("<F5>", _on_f5)
+    app.bind_all("<F11>", _on_f11)
+    app.bind_all("<F12>", _on_f12)

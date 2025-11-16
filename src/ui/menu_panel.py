@@ -19,9 +19,6 @@ def build_menu_bar(app: "ExcelViewerApp"):
     file_menu.add_command(label="Open Project...", command=app.open_project, accelerator="Ctrl+O")
     file_menu.add_command(label="Save Project As...", command=app.save_project, accelerator="Ctrl+S")
     file_menu.add_separator()
-    file_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
-    file_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
-    file_menu.add_separator()
     file_menu.add_command(label="Exit", command=app.quit, accelerator="Esc")
     menubar.add_cascade(label="File", menu=file_menu)
 
@@ -29,8 +26,14 @@ def build_menu_bar(app: "ExcelViewerApp"):
     edit_menu = tk.Menu(menubar, tearoff=0)
     edit_menu.add_command(label="Clear Table", command=app.dummy)
     menubar.add_cascade(label="Edit", menu=edit_menu)
+    
+    # # ---------- Excel menu ----------
+    excel_menu = tk.Menu(menubar, tearoff=0)
+    excel_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
+    excel_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
+    menubar.add_cascade(label="Excel", menu=excel_menu)
 
-    # # ---------- Run menu ----------
+    # # ---------- CSV menu ----------
     CSV_menu = tk.Menu(menubar, tearoff=0)
     CSV_menu.add_command(label="New..", command=app.create_new_csv)
     CSV_menu.add_command(label="Open..", command=app.open_csv)
@@ -57,7 +60,7 @@ def build_menu_bar(app: "ExcelViewerApp"):
     
     # ---------- Help menu ----------
     help_menu = tk.Menu(menubar, tearoff=0)
-    help_menu.add_command(label="About", command=app._show_about_dialog,  accelerator="F1")
+    help_menu.add_command(label="About",  accelerator="F1", command=app._show_about_dialog)
     menubar.add_cascade(label="Help", menu=help_menu)
 
     # Attach to window

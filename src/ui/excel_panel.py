@@ -33,7 +33,7 @@ class ExcelPanel(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(self, text="CSV Viewer", font=ctk.CTkFont(size=18, weight="bold"))
+        title = ctk.CTkLabel(self, text="Excel Automator", font=ctk.CTkFont(size=18, weight="bold"))
         title.grid(row=0, column=0, pady=(10, 5))
 
         # Container for the Sheet widget

@@ -7,7 +7,7 @@ import customtkinter as ctk
 from managers.project_mgr import project_mgr
 from managers.excel_mgr import excel_mgr
 from managers.csv_mgr import csv_mgr
-# from managers.settings_mgr import load_settings
+from managers.settings_mgr import load_settings
 from managers.hotkeys_mgr import register_hotkeys
 
 from ui.excel_panel import ExcelPanel
@@ -20,7 +20,7 @@ class ExcelViewerApp(ctk.CTk,project_mgr,excel_mgr,csv_mgr):
         super().__init__()
 
         # --- Window setup ---
-        self.title("CSV Viewer")
+        self.title("Excel Automator")
         self.geometry("1024x700")
         # Maximize AFTER the window is created (prevents flicker)
         self.after(100, self._maximize_window)
@@ -49,15 +49,15 @@ class ExcelViewerApp(ctk.CTk,project_mgr,excel_mgr,csv_mgr):
         # # Hotkeys
         register_hotkeys(self)
 
-        # # Load settings & auto-open last project if available
-        # self.settings = load_settings()
-        # recent = self.settings.get("recent_projects", [])
-        # if recent:
-        #     last_project = recent[0]
-        #     # don't spam error popups on startup; fail silently
-        #     self._open_project_by_path(last_project, show_errors=False)
+        # Load settings & auto-open last project if available
+        self.settings = load_settings()
+        recent = self.settings.get("recent_projects", [])
+        if recent:
+            last_project = recent[0]
+            # don't spam error popups on startup; fail silently
+            self._open_project_by_path(last_project, show_errors=False)
 
-        # self._update_title_with_path()
+        self._update_title_with_path()
 
     # ------------------------------------------------------------------
     # Appearance / Help
@@ -70,6 +70,13 @@ class ExcelViewerApp(ctk.CTk,project_mgr,excel_mgr,csv_mgr):
             w = self.winfo_screenwidth()
             h = self.winfo_screenheight()
             self.geometry(f"{w}x{h}+0+0")
+
+    def _minimize_window(self):
+        try:
+            self.geometry("1024x700")
+        except Exception:
+            # Fallback in case zoomed isn't supported
+            return
             
     def _set_appearance_mode(self, mode: str):
         ctk.set_appearance_mode(mode)
@@ -77,7 +84,7 @@ class ExcelViewerApp(ctk.CTk,project_mgr,excel_mgr,csv_mgr):
     def _show_about_dialog(self):
         messagebox.showinfo(
             "About",
-            "CSV Viewer / Project Manager\n\nBuilt with customtkinter.\n© Osama ElMorady 😉",
+            "Excel Automator / Project Manager\n\nBuilt with customtkinter.\n© Osama ElMorady 😉",
         )
 
     def dummy(self):
@@ -86,12 +93,12 @@ class ExcelViewerApp(ctk.CTk,project_mgr,excel_mgr,csv_mgr):
     # ------------------------------------------------------------------
     # Window title helper
     # ------------------------------------------------------------------
-    # def _update_title_with_path(self):
-    #     if not self.csv_path:
-    #         self.title("CSV Viewer")
-    #     else:
-    #         name = os.path.basename(self.csv_path)
-    #         self.title(f"CSV Viewer - {name}")
+    def _update_title_with_path(self):
+        if not self.csv_path:
+            self.title("Excel Automator")
+        else:
+            name = os.path.basename(self.csv_path)
+            self.title(f"Excel Automator - {name}")
 
 
 def run_app():
