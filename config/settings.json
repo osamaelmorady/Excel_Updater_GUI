@@ -1,5 +1,13 @@
 {
     "recent_projects": [
-        "E:/Git/Excel_Updater_GUI/data/prjct.yaml"
-    ]
+        "E:\\Git\\Excel_Updater_GUI\\config\\Project1.yaml",
+        "E:/Git/Excel_Updater_GUI/config/Project1.yaml"
+    ],
+    "recent_data_files": [
+        "E:\\Git\\Excel_Updater_GUI\\data\\test_wbsss.xlsx",
+        "E:/Git/Excel_Updater_GUI/data/test_wb.xlsx",
+        "E:/Git/Excel_Updater_GUI/data/input1.csv"
+    ],
+    "last_opened_project": "E:\\Git\\Excel_Updater_GUI\\config\\Project1.yaml",
+    "last_opened_data": "E:\\Git\\Excel_Updater_GUI\\data\\test_wbsss.xlsx"
 }

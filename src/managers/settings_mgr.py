@@ -1,72 +1,106 @@
-# settings_mgr.py
 import json
+from pathlib import Path
+from typing import Optional, List
 import os
 
 # Adjust this if your settings.json is somewhere else
-
-# Folder where *this* file lives (e.g. .../src)
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Project root = parent of src (one level up)
-PROJECT_ROOT = os.path.dirname(_THIS_DIR)
-
-# Config folder under project root
+# Project root = parent directory of the folder containing THIS file
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))          # folder of settings_mgr.py
+PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, os.pardir, os.pardir))  # parent of _THIS_DIR
 CONFIG_DIR = os.path.join(PROJECT_ROOT, "config")
-
-# settings.json inside config
-SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
-
-
-MAX_RECENT = 5
+SETTINGS_FILE_LOC = os.path.join(CONFIG_DIR, "settings.json")
+MAX_RECENT = 10
 
 
-def _default_settings() -> dict:
-    return {
-        "recent_projects": []  # list of paths (strings)
-    }
+SETTINGS_FILE = Path(SETTINGS_FILE_LOC)
 
 
-def load_settings() -> dict:
+class Settings:
     """
-    Load settings.json if it exists, otherwise return default settings.
+    Robust settings manager with:
+    - Automatic file validation
+    - Safe loads/saves
+    - Backwards compatibility
+    - Recent Excel/CSV/project files
     """
-    if not os.path.exists(SETTINGS_FILE):
-        return _default_settings()
+    def __init__(self, *args, **kwargs):
+        # important: call super() for other base classes
+        super().__init__(*args, **kwargs)
+        self.recent_projects: List[str] = []
+        self.recent_data_files: List[str] = []
+        self.last_opened_project: str | None = None
+        self.last_opened_data: str | None = None
 
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            return _default_settings()
-        # Ensure key exists
-        data.setdefault("recent_projects", [])
-        return data
-    except Exception:
-        # Corrupted / unreadable file -> fall back
-        return _default_settings()
+    # ------------------------------------------------------------------
+    # Load settings.json
+    # ------------------------------------------------------------------
+    @classmethod
+    def load(cls) -> "Settings":
+        s = cls()
+        if not SETTINGS_FILE.exists():
+            print("⚠ settings.json not found → Using defaults.")
+            return s
+
+        try:       
+            raw = SETTINGS_FILE.read_text(encoding="utf-8").lstrip("\ufeff")
+            data = json.loads(raw)
+        except Exception as e:
+            print("❌ Invalid settings.json:", e)
+            return s
+
+        # Backwards compatibility support
+        s.recent_projects = data.get("recent_projects", []) or []
+        s.recent_data_files = data.get("recent_data_files", []) or []
+
+        s.last_opened_project = data.get("last_opened_project")
+        s.last_opened_data = data.get("last_opened_data")
+
+        # Legacy keys support (upgrade old projects)
+        legacy_excel = data.get("Excel_path")
+        if legacy_excel and legacy_excel not in s.recent_data_files:
+            s.recent_data_files.insert(0, legacy_excel)
+            s.last_opened_data = legacy_excel
+
+        return s
+
+    # ------------------------------------------------------------------
+    # Save settings safely
+    # ------------------------------------------------------------------
+    def save(self):
+        data = {
+            "recent_projects": self.recent_projects,
+            "recent_data_files": self.recent_data_files,
+            "last_opened_project": self.last_opened_project,
+            "last_opened_data": self.last_opened_data,
+        }
+
+        try:
+            SETTINGS_FILE.write_text(
+                json.dumps(data, indent=4),
+                encoding="utf-8"
+            )
+        except Exception as e:
+            print("❌ Failed to save settings:", e)
+
+    # ------------------------------------------------------------------
+    # Helpers to update recent lists
+    # ------------------------------------------------------------------
+    def add_recent_project(self, path: str):
+        p = str(Path(path))
+        if p in self.recent_projects:
+            self.recent_projects.remove(p)
+        self.recent_projects.insert(0, p)
+        self.last_opened_project = p
+        self.save()
+
+    def add_recent_data(self, path: str):
+        p = str(Path(path))
+        if p in self.recent_data_files:
+            self.recent_data_files.remove(p)
+        self.recent_data_files.insert(0, p)
+        self.last_opened_data = p
+        self.save()
 
 
-def save_settings(settings: dict) -> None:
-    """
-    Save the settings dict to settings.json.
-    """
-    os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=4)
 
 
-def add_recent_project(path: str) -> dict:
-    """
-    Insert a project path at the top of recent_projects (no duplicates, max 5).
-    Returns the updated settings dict.
-    """
-    settings = load_settings()
-    recent = settings.get("recent_projects", [])
-
-    # Remove if already exists, then insert at front
-    recent = [p for p in recent if p != path]
-    recent.insert(0, path)
-    settings["recent_projects"] = recent[:MAX_RECENT]
-
-    save_settings(settings)
-    return settings

@@ -1,14 +1,16 @@
 # task_scheduler/ui/project_api.py
-import os
+
 import traceback
 from tkinter import messagebox, filedialog
-
-from managers.settings_mgr import add_recent_project
-
+from pathlib import Path
+from managers.settings_mgr import Settings
+from services.excel_service import save_excel_workbook, load_excel_workbook
 
 class project_mgr:
     """
-    Mixin providing project-level APIs:
+    Standalone version — no dependency on Settings or excel_mgr.
+
+    Provides:
     - new_project
     - open_project
     - save_project
@@ -16,34 +18,38 @@ class project_mgr:
     - _load_project_yaml
     - _save_project_yaml
 
-    Expects the following attributes on self:
-    - self.csv_path
+    Expects the following attributes ON SELF:
     - self.project_path
-    - self.csv_panel (with .clear_table() and .load_data())
-    - self.settings
-    - self._update_title_with_path()
-    - self._load_csv_file(path: str)
+    - self.data_path
+    - self.csv_panel (optional)
+    - self._update_title_with_path()  (optional)
     """
 
+    # ---------------------------------------------------------
+    # New Project
+    # ---------------------------------------------------------
     def new_project(self):
-        """
-        Clear current CSV and project info.
-        """
-        if getattr(self, "csv_path", None):
+        """Clear current workbook/data & project info."""
+        if getattr(self, "data_path", None):
             if not messagebox.askyesno(
-                "New Project", "Clear current CSV view and start a new project?"
+                "New Project",
+                "Clear current data file and start a new project?"
             ):
                 return
 
-        self.csv_path = None
+        self.data_path = None
         self.project_path = None
 
-        # Clear the table UI
-        # if getattr(self, "csv_panel", None) is not None:
+        # Clear UI if available
+        # if hasattr(self, "csv_panel") and hasattr(self.csv_panel, "clear_table"):
         #     self.csv_panel.clear_table()
 
-        # self._update_title_with_path()
+        # if hasattr(self, "_update_title_with_path"):
+        #     self._update_title_with_path()
 
+    # ---------------------------------------------------------
+    # Open Project (YAML)
+    # ---------------------------------------------------------
     def open_project(self):
         path = filedialog.askopenfilename(
             title="Open Project",
@@ -54,14 +60,17 @@ class project_mgr:
 
         self._open_project_by_path(path, show_errors=True)
 
+    # ---------------------------------------------------------
+    # Save Project
+    # ---------------------------------------------------------
     def save_project(self):
-        if not getattr(self, "csv_path", None):
+        if not self.data_path:
             if not messagebox.askyesno(
                 "Save Project",
-                "No CSV is open. Save project anyway (without CSV path)?",
+                "Project has no Excel file. Save anyway?"
             ):
                 return
-
+    
         path = filedialog.asksaveasfilename(
             title="Save Project",
             defaultextension=".yaml",
@@ -69,66 +78,101 @@ class project_mgr:
         )
         if not path:
             return
-
-        project_data = {
-            "csv_path": self.csv_path or "",
-        }
-
+    
+        project_data = {"data_path": self.data_path or ""}
+    
         try:
             self._save_project_yaml(path, project_data)
             self.project_path = path
-
-            # Update recent projects & settings
-            self.settings = add_recent_project(path)
-
-            messagebox.showinfo("Save Project", f"Project saved to:\n{path}")
+    
+            # update settings
+            self.settings.add_recent_project(path)
+            if self.data_path:
+                self.settings.add_recent_data(self.data_path)
+    
+            messagebox.showinfo("Save Project", f"Project saved:\n{path}")
         except Exception as e:
-            messagebox.showerror("Save Project", f"Failed to save project:\n{e}")
+            messagebox.showerror("Save Error", str(e))
+    
 
-    # ----------------- internal helpers -----------------
 
+    # ---------------------------------------------------------
+    # INTERNAL: Open existing project
+    # ---------------------------------------------------------
     def _open_project_by_path(self, path: str, show_errors: bool = True):
         """
-        Core logic to open a project from a given path.
-        Used by both 'Open Project...' and startup auto-load.
+        Load project YAML and restore associated Excel file path.
         """
+    
+        # ---------- FIX: ensure settings exists ----------
+        if not hasattr(self, "settings"):
+            class DummySettings:
+                def add_recent_project(self, *a): pass
+                def add_recent_data(self, *a): pass
+            self.settings = DummySettings()
+        # -------------------------------------------------
+    
+        # Load YAML
         try:
             project = self._load_project_yaml(path)
         except Exception as e:
             if show_errors:
-                messagebox.showerror("Open Project", f"Failed to open project:\n{e}")
-            else:
-                print("Failed to open project on startup:")
-                traceback.print_exc()
+                messagebox.showerror("Open Project", f"Failed to load project file:\n{e}")
             return
-
+    
         self.project_path = path
-        self.csv_path = project.get("csv_path") or None
+        self.data_path = project.get("data_path") or None
+    
+        # Update recent project
+        self.settings.add_recent_project(path)
+    
+        # ------------------------------------------
+        # Load Excel file if path exists
+        # ------------------------------------------
+        if self.data_path:
+            excel_path = Path(self.data_path)
+            if excel_path.exists():
+                try:
+                    workbook = load_excel_workbook(excel_path)
+                    self.current_excel_workbook = workbook
+    
+                    # Update settings → recent Excel list
+                    self.settings.add_recent_data(self.data_path)
+    
+                    # Notify GUI if supported
+                    # if hasattr(self, "_on_excel_loaded"):
+                    #     self._on_excel_loaded(workbook)
+    
+                except Exception as exc:
+                    if show_errors:
+                        messagebox.showerror(
+                            "Error",
+                            f"Project opened but Excel failed to load:\n{exc}"
+                        )
+            else:
+                if show_errors:
+                    messagebox.showwarning(
+                        "Missing File",
+                        f"The Excel file does not exist:\n{self.data_path}"
+                    )
+                if hasattr(self, "csv_panel"):
+                    self.csv_panel.clear_table()
+    
+        else:
+            # No excel path in YAML
+            if hasattr(self, "csv_panel"):
+                self.csv_panel.clear_table()
+    
+        if hasattr(self, "_update_title_with_path"):
+            self._update_title_with_path()
+    
 
-        # Update recent_projects in settings
-        self.settings = add_recent_project(path)
-
-        # if self.csv_path:
-        #     try:
-        #         rows = self._load_csv_file(self.csv_path)
-        #         self.csv_panel.load_data(rows)
-        #     except Exception as e:
-        #         if show_errors:
-        #             messagebox.showerror(
-        #                 "Open Project", f"Project loaded, but CSV failed:\n{e}"
-        #             )
-        # else:
-        #     # no CSV path stored in project -> clear the view
-        #     self.csv_panel.clear_table()
-
-        # self._update_title_with_path()
-
+    # ---------------------------------------------------------
+    # INTERNAL: Load YAML
+    # ---------------------------------------------------------
     def _load_project_yaml(self, path: str) -> dict:
-        """
-        VERY simple YAML reader for key: value pairs.
-        Enough for now and still valid YAML for the future.
-        """
-        project: dict[str, str] = {}
+        """Minimal YAML reader for simple key: value pairs."""
+        project = {}
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -142,6 +186,9 @@ class project_mgr:
                 project[key] = value
         return project
 
+    # ---------------------------------------------------------
+    # INTERNAL: Save YAML
+    # ---------------------------------------------------------
     def _save_project_yaml(self, path: str, data: dict) -> None:
         lines = []
         for key, value in data.items():

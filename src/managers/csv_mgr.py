@@ -31,7 +31,7 @@ class csv_mgr:
     - CSV edit commands: add_row, add_column, delete_row, delete_column
 
     Expects on self:
-    - self.csv_path
+    - self.Excel_path
     - self.csv_panel (with .load_data() and .get_data())
     - self._update_title_with_path()
     """
@@ -92,7 +92,7 @@ class csv_mgr:
         If a CSV is already open, it is simply replaced in the UI.
         """
         initialfile = "new.csv"
-        initialdir = os.path.dirname(self.csv_path) if self.csv_path else ""
+        initialdir = os.path.dirname(self.Excel_path) if self.Excel_path else ""
 
         path = filedialog.asksaveasfilename(
             title="Create New CSV",
@@ -111,7 +111,7 @@ class csv_mgr:
                 writer = csv.writer(f)
                 writer.writerow([""])
 
-            self.csv_path = path
+            self.Excel_path = path
 
             # Load a single empty cell into the sheet
             self.load_data([[""]])
@@ -135,17 +135,17 @@ class csv_mgr:
             messagebox.showerror("Open CSV", f"Failed to open CSV:\n{e}")
             return
 
-        self.csv_path = path
+        self.Excel_path = path
         self.load_data(rows)
         # self._update_title_with_path()
 
     def reload_csv(self):
-        if not self.csv_path:
+        if not self.Excel_path:
             messagebox.showinfo("Reload CSV", "No CSV file is currently open.")
             return
 
         try:
-            rows = self._load_csv_file(self.csv_path)
+            rows = self._load_csv_file(self.Excel_path)
         except Exception as e:
             messagebox.showerror("Reload CSV", f"Failed to reload CSV:\n{e}")
             return
@@ -162,8 +162,8 @@ class csv_mgr:
             messagebox.showinfo("Save CSV", "There is no data to save.")
             return
 
-        initialfile = os.path.basename(self.csv_path) if self.csv_path else "data.csv"
-        initialdir = os.path.dirname(self.csv_path) if self.csv_path else ""
+        initialfile = os.path.basename(self.Excel_path) if self.Excel_path else "data.csv"
+        initialdir = os.path.dirname(self.Excel_path) if self.Excel_path else ""
 
         path = filedialog.asksaveasfilename(
             title="Save CSV",
@@ -181,7 +181,7 @@ class csv_mgr:
                 for row in rows:
                     writer.writerow(row)
 
-            self.csv_path = path
+            self.Excel_path = path
             # self._update_title_with_path()
             messagebox.showinfo("Save CSV", f"CSV saved to:\n{path}")
         except Exception as e:
@@ -238,16 +238,6 @@ class csv_mgr:
 
     #     self.sheet.refresh()
 
-    def get_data(self):
-        """
-        Return current sheet data as list of rows (list[list[str]]).
-        """
-        try:
-            # newer tksheet versions
-            return self.sheet.get_sheet_data(return_copy=True)
-        except TypeError:
-            # older versions without the argument
-            return self.sheet.get_sheet_data()
     # ----------------- CSV edit commands (stubs) -----------------
 
 
