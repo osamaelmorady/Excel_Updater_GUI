@@ -3,6 +3,9 @@ import customtkinter as ctk
 from tksheet import Sheet
 from tkinter import messagebox
 
+
+from managers.excel_mgr import excel_mgr
+
 def index_to_col_name(index: int) -> str:
     """Convert 0-based index to spreadsheet-like column name (A, B, ..., Z, AA, AB, ...)."""
     name = ""
@@ -17,9 +20,31 @@ def index_to_col_name(index: int) -> str:
 
 
 
+class BottomTabsPanel(ctk.CTkFrame):
+    def __init__(self, master, on_tab_change=None, **kwargs):
+        super().__init__(master, fg_color="transparent", **kwargs)
+
+        self.on_tab_change = on_tab_change
+
+        self.tabs = ctk.CTkSegmentedButton(
+            self,
+            values=["input1.csv", "input2.csv", "input3.csv","input4.csv","input5.csv","input6.csv"],
+            command=self._on_tab_selected,
+        )
+        self.tabs.pack(fill="x", padx=10, pady=(0, 10))
+
+        # default
+        self.tabs.set("Summary")
+
+    def _on_tab_selected(self, value: str):
+        if self.on_tab_change is not None:
+            self.on_tab_change(value)
+        else:
+            # dummy behavior
+            messagebox.showinfo("Not implemented", f"Tab '{value}' is not implemented yet.")
 
 
-class ExcelPanel(ctk.CTkFrame):
+class ExcelPanel(ctk.CTkFrame,excel_mgr):
     """
     Right panel that shows CSV/Excel content in a tksheet Sheet widget:
     - full grid (like Excel / Google Sheets)
@@ -29,7 +54,8 @@ class ExcelPanel(ctk.CTkFrame):
     """
 
     def __init__(self, master: "ExcelViewerApp", **kwargs):
-        super().__init__(master, corner_radius=10, **kwargs)
+        ctk.CTkFrame.__init__(self, master, corner_radius=10, **kwargs)
+        excel_mgr.__init__(self)  # if you later add __init__ to excel_mgr
 
         # Row 0 = title, row 1 = sheet (expands), row 2 = bottom tabs
         self.grid_rowconfigure(0, weight=0)
@@ -51,37 +77,18 @@ class ExcelPanel(ctk.CTkFrame):
         container.grid_columnconfigure(0, weight=1)
 
         # TODO: put your tksheet widget inside `container` later
-        # self.sheet = Sheet(container, ...)
-        # self.sheet.grid(row=0, column=0, sticky="nsew")
+        self.sheet = Sheet(container, ...)
+        self.sheet.grid(row=0, column=0, sticky="nsew")
 
         
 
 
-        # --- Bottom "tabs" (dummy for now) ---
-        self.bottom_tabs = ctk.CTkSegmentedButton(self,
-            values=["Summary", "Filters", "Macros"],
-            command=self.on_bottom_tab_selected
-        )
+        # Bottom tabs (in their own panel)
+        self.tabs_panel = BottomTabsPanel(self, on_tab_change=self.on_bottom_tab_selected)
+        self.tabs_panel.grid(row=2, column=0, sticky="ew")
         
-        self.bottom_tabs.grid(
-            row=2,
-            column=0,
-            sticky="ew",
-            padx=10,
-            pady=(0, 10)
-        )
-
-        # Select default tab
-        self.bottom_tabs.set("Summary")
 
     def on_bottom_tab_selected(self, tab_name: str):
-        """
-        Dummy callback for bottom tabs.
-        Replace the body of this function later with real logic.
-        """
-        print(f"[ExcelPanel] Bottom tab selected: {tab_name}")
-        messagebox.showinfo(
-            "Not implemented yet",
-            f"Tab '{tab_name}' is not implemented yet.\n\n"
-            f"This is just a dummy action."
-        )
+        # Dummy for now
+        print(f"[ExcelPanel] Tab selected: {tab_name}")
+        # later: switch modes / show side widgets / change filters, etc.

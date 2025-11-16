@@ -24,13 +24,23 @@ def build_menu_bar(app: "ExcelViewerApp"):
 
     # # ---------- Edit menu ----------
     edit_menu = tk.Menu(menubar, tearoff=0)
-    edit_menu.add_command(label="Clear Table", command=app.dummy)
+    edit_menu.add_command(label="Undo", command=app.dummy)
+    edit_menu.add_command(label="Redo", command=app.dummy)
+    edit_menu.add_separator()
+    edit_menu.add_command(label="Refresh", command=app.dummy)
+    edit_menu.add_command(label="Clear", command=app.dummy)
     menubar.add_cascade(label="Edit", menu=edit_menu)
     
     # # ---------- Excel menu ----------
     excel_menu = tk.Menu(menubar, tearoff=0)
     excel_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
     excel_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
+    excel_menu.add_separator()
+    excel_menu.add_command(label="Add New Sheet...", command=app.dummy)
+    excel_menu.add_command(label="Delete Current Sheet...", command=app.dummy)
+    excel_menu.add_command(label="Reload Current Sheet...", command=app.dummy) 
+    excel_menu.add_command(label="Clear Current Sheet...", command=app.dummy) 
+    excel_menu.add_command(label="Save Current Sheet...", command=app.dummy)  
     menubar.add_cascade(label="Excel", menu=excel_menu)
 
     # # ---------- CSV menu ----------
