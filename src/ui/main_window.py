@@ -7,7 +7,7 @@ import customtkinter as ctk
 from managers.project_mgr import project_mgr
 from managers.excel_mgr import excel_mgr
 from managers.csv_mgr import csv_mgr
-from managers.settings_mgr import Settings
+from managers.settings_mgr import Settings,get_data_path_from_yaml
 from managers.hotkeys_mgr import register_hotkeys
 
 from ui.excel_panel import ExcelPanel
@@ -32,10 +32,10 @@ class ExcelViewerApp(ctk.CTk,Settings,project_mgr,excel_mgr,csv_mgr):
             self._open_project_by_path(last_project, show_errors=False)
 
         # state
-        self.Excel_path: str | None = None      # currently opened Excel
+        self.Excel_path: str | None = get_data_path_from_yaml(last_project)      # currently opened Excel
         self.project_path: str | None = last_project  # currently opened/saved project (YAML)
         # ------ --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
+        
 
         # ------ --- --- --- --- Window setup --- --- --- --- ---
         # --- Window setup ---

@@ -281,6 +281,8 @@ class excel_mgr:
         """
         # Normalize to list of lists (rows)
         rows = df.fillna("").astype(str).values.tolist()
+        
+
 
         # Ensure at least one cell
         if not rows:

@@ -75,12 +75,37 @@ class ExcelPanel(ctk.CTkFrame,excel_mgr):
         container.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 5))
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
+        
+        
 
         # TODO: put your tksheet widget inside `container` later
-        self.sheet = Sheet(container, ...)
+        # --- tksheet Sheet widget ---
+        self.sheet = Sheet( container, show_x_scrollbar=True,  show_y_scrollbar=True,  show_top_left=False)
         self.sheet.grid(row=0, column=0, sticky="nsew")
-
         
+        # Enable useful bindings (edit, copy/paste, resize, etc.)
+        # Enable useful bindings (edit, copy/paste, resize, etc.)
+        self.sheet.enable_bindings(
+            "single_select",
+            "row_select",
+            "column_select",
+            "arrowkeys",
+            "row_height_resize",
+            "column_width_resize",
+            "drag_select",
+            "edit_cell",
+            "copy",
+            "cut",
+            "paste",
+            "delete",
+            "undo",
+            "redo",
+        )  
+        
+        rows = [[""]]
+        self.sheet.set_sheet_data(rows)
+        
+
 
 
         # Bottom tabs (in their own panel)

@@ -104,3 +104,50 @@ class Settings:
 
 
 
+import os
+from typing import Optional
+
+import yaml  # pip install pyyaml
+
+
+def get_data_path_from_yaml(yaml_file):
+    """
+    Read a YAML file and return the value of 'data_path' if present and non-empty.
+    
+    Returns:
+        - str: the data_path value, e.g. "E:/Git/Excel_Updater_GUI/data/123213.xlsx"
+        - None: if file doesn't exist, is empty, invalid, or data_path is missing/empty
+    """
+    # 1) File does not exist
+    if not os.path.exists(yaml_file):
+        return None
+
+    try:
+        # 2) Read content and handle empty file
+        with open(yaml_file, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+
+        if not content:  # empty or only whitespace
+            return None
+
+        # 3) Parse YAML
+        data = yaml.safe_load(content)
+
+    except (OSError, yaml.YAMLError):
+        # IO error or YAML parsing error
+        return None
+
+    # 4) Ensure we got a mapping
+    if not isinstance(data, dict):
+        return None
+
+    # 5) Extract data_path
+    value = data.get("data_path")
+
+    # Handle cases like:
+    # data_path:
+    # data_path: ""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+
+    return None

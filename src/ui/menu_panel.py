@@ -36,7 +36,7 @@ def build_menu_bar(app: "ExcelViewerApp"):
     excel_menu.add_command(label="Export to Excel...", command=app.export_to_excel)
     excel_menu.add_command(label="Import from Excel...", command=app.import_from_excel)
     excel_menu.add_separator()
-    excel_menu.add_command(label="Add New Sheet...", command=app.dummy)
+    excel_menu.add_command(label="Open Excel...", command=app.open_excel)
     excel_menu.add_command(label="Delete Current Sheet...", command=app.dummy)
     excel_menu.add_command(label="Reload Current Sheet...", command=app.dummy) 
     excel_menu.add_command(label="Clear Current Sheet...", command=app.dummy) 
