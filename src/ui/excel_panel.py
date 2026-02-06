@@ -1,4 +1,6 @@
 # task_scheduler/ui/excel_panel.py
+import os
+import pandas as pd  # requires: pip install pandas openpyxl
 import customtkinter as ctk
 from tksheet import Sheet
 from tkinter import messagebox
@@ -76,8 +78,6 @@ class ExcelPanel(ctk.CTkFrame,excel_mgr):
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
         
-        
-
         # TODO: put your tksheet widget inside `container` later
         # --- tksheet Sheet widget ---
         self.sheet = Sheet( container, show_x_scrollbar=True,  show_y_scrollbar=True,  show_top_left=False)
@@ -102,6 +102,10 @@ class ExcelPanel(ctk.CTkFrame,excel_mgr):
             "redo",
         )  
         
+        
+        excel_all_data = self.load_excel_first_sheet()
+        self.df_to_sheet(excel_all_data)
+        
         rows = [[""]]
         self.sheet.set_sheet_data(rows)
         
@@ -117,3 +121,49 @@ class ExcelPanel(ctk.CTkFrame,excel_mgr):
         # Dummy for now
         print(f"[ExcelPanel] Tab selected: {tab_name}")
         # later: switch modes / show side widgets / change filters, etc.
+
+
+    def df_to_sheet(self, df: "pd.DataFrame"):
+        """
+        Push a DataFrame into the tksheet widget.
+        """
+        # Normalize to list of lists (rows)
+        rows = df.fillna("").astype(str).values.tolist()
+        
+
+
+        # Ensure at least one cell
+        if not rows:
+            rows = [[""]]
+
+        # Set data in the Sheet widget
+        self.sheet.set_sheet_data(rows)
+
+        # Optional: you can add headers from df.columns if you like
+        # For now, leave A/B/C... from tksheet as-is, or:
+        # self.sheet.headers(list(df.columns.astype(str)))
+
+        # Row headers 1..N
+        row_headers = [str(i + 1) for i in range(len(rows))]
+        self.sheet.row_index(row_headers)
+
+        self.sheet.refresh()
+
+    def _update_title_if_available(self):
+        """
+        Call the app's _update_title_with_path() if it exists.
+        """
+        # if hasattr(self, "_update_title_with_path"):
+        #     self._update_title_with_path()
+        return
+    
+    
+    def load_excel_first_sheet(self, path: str) -> pd.DataFrame:
+        """
+        Load the first sheet of an Excel file.
+        """
+        xls = pd.ExcelFile(path)
+        sheet_name = xls.sheet_names[0]
+        df = pd.read_excel(xls, sheet_name=sheet_name, dtype=str)
+        df.attrs["sheet_name"] = sheet_name
+        return df

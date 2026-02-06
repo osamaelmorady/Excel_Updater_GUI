@@ -5,5 +5,5 @@ REM Optional: activate virtual environment if you use one
 REM call venv\Scripts\activate.bat
 
 REM Run Python script
-py -u src\main.py
-
+REM python -u src\main.py
+.venv\Scripts\python.exe src\main.py

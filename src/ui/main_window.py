@@ -7,7 +7,7 @@ import customtkinter as ctk
 from managers.project_mgr import project_mgr
 from managers.excel_mgr import excel_mgr
 from managers.csv_mgr import csv_mgr
-from managers.settings_mgr import Settings,get_data_path_from_yaml
+from managers.settings_mgr import Settings
 from managers.hotkeys_mgr import register_hotkeys
 
 from ui.excel_panel import ExcelPanel
@@ -30,21 +30,17 @@ class ExcelViewerApp(ctk.CTk,Settings,project_mgr,excel_mgr,csv_mgr):
             last_project = recent[0]
             # don't spam error popups on startup; fail silently
             self._open_project_by_path(last_project, show_errors=False)
-
-        # state
-        self.Excel_path: str | None = get_data_path_from_yaml(last_project)      # currently opened Excel
-        self.project_path: str | None = last_project  # currently opened/saved project (YAML)
         # ------ --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
         
 
-        # ------ --- --- --- --- Window setup --- --- --- --- ---
+        # ------ --- --- --- --- Main Window setup --- --- --- --- ---
         # --- Window setup ---
-        self.title("Excel Automator")
+        self.title("Excel Automator" + " - " + "Project")                   # will be replaced later with the project name
         self.geometry("1024x700")
         # Maximize AFTER the window is created (prevents flicker)
         self.after(100, self._maximize_window)
         ctk.set_appearance_mode("Dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
         
         # Layout: col 0 = sidebar, col 1 = main area
         self.grid_rowconfigure(0, weight=1)
@@ -53,14 +49,15 @@ class ExcelViewerApp(ctk.CTk,Settings,project_mgr,excel_mgr,csv_mgr):
         # ------ --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
 
-        # ------ --- --- --- --- Panels setup --- --- --- --- ---
-        # LEFT: commands panel
-        self.commands_panel = build_commands_panel(self)
+        # # ------ --- --- --- --- Panels setup --- --- --- --- ---
+        # # LEFT: commands panel
+        # self.commands_panel = build_commands_panel(self)
 
-        # RIGHT: CSV table panel
-        self.excel_panel = ExcelPanel(self)
-        self.excel_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        # ------ --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+        # # RIGHT: CSV table panel
+        # self.excel_panel = ExcelPanel(self)
+
+        # self.excel_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        # # ------ --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
         
         
         

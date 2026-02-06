@@ -36,9 +36,10 @@ class excel_mgr:
         super().__init__(*args, **kwargs)
 
         # Must exist for project_mgr compatibility
-        self.data_path: Optional[str] = None
+        # self.data_path: Optional[str] = None
+        # self.current_excel_workbook: Optional[ExcelWorkbook] = None
+        self.data_path: Optional[str] = "E:\\Git\\Excel_Updater_GUI\\data\\123213.xlsx"
         self.current_excel_workbook: Optional[ExcelWorkbook] = None
-
     # ---------------------------------------------------------
     # Import Excel file
     # ---------------------------------------------------------
@@ -135,7 +136,54 @@ class excel_mgr:
     # Process Excel file
     # ---------------------------------------------------------
     # ----------------- Core Excel operations -----------------
+    def read_excel_workbook(self):
+        """
+        Load an Excel workbook and return all sheets as DataFrames.
 
+        Parameters
+        ----------
+        path : str | None
+            Full path to the Excel file. If None, uses self.Excel_path.
+
+        Returns
+        -------
+        dict[str, DataFrame] | None
+            A dict mapping sheet names to DataFrames, or None if loading failed.
+
+        Notes
+        -----
+        - No file dialog is shown.
+        - No grid/UI updates are done here.
+        """
+        if not self.data_path:
+            # You can either:
+            # - raise an error, or
+            # - return None, or
+            # - show a messagebox (if you still want UI here)
+            # For now, we silently return None:
+            return None
+
+        try:
+            # Read the whole workbook: all sheets
+            # sheet_name=None → dict of {sheet_name: DataFrame}
+            workbook = pd.read_excel(self.data_path, sheet_name=None, engine="openpyxl")
+        except ImportError:
+            # If you still want user feedback, keep this
+            messagebox.showerror(
+                "Excel Import",
+                "Missing dependency: pandas/openpyxl.\n\n"
+                "Install with:\n  pip install pandas openpyxl",
+            )
+            return None
+        except Exception as e:
+            messagebox.showerror("Open Excel", f"Failed to open Excel file:\n{e}")
+            return None
+
+        # No _df_to_sheet(), no _update_title_if_available() — just return data
+        return workbook
+    
+    
+    
     def open_excel(self):
         """
         Open an Excel file (.xlsx) and display the first sheet in the grid.
