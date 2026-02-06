@@ -1,5 +1,7 @@
 customtkinter
 PyInstaller
+pyinstaller
 PyYaml
+openpyxl
 pandas
 tksheet

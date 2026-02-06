@@ -59,6 +59,8 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
     exit /b
 )
 
+call .venv\Scripts\activate
+
 :: ==========================================
 echo [3/4] Installing requirements...
 :: ==========================================
